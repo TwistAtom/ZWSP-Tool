@@ -175,7 +175,6 @@ class ZWSPTool:
     def extract(self, public_text, zwsp_list, threshold, encryption):
         encoded_text, private_text, padding = '', '', self.get_padding(len(zwsp_list), threshold)
         current_encoded_char = ''
-
         for char in public_text:
             if char in zwsp_list:
                 encoded_text += str(zwsp_list.index(char))
@@ -207,13 +206,12 @@ class ZWSPTool:
         nbOperations *= (threshold_range[1] - threshold_range[0])
 
         print(searched_text)
-        with alive_bar(nbOperations, bar=DETERMINATED_BAR) as bar:
+        with alive_bar(nbOperations, bar=DETERMINATED_BAR, enrich_print=False) as bar:
             if searched_text:
                 if output:
                     file = open(output, "a")
                     for i in range(2, len(zwsp_list) + 1):
-                        current_zwsp_list = list(itertools.permutations(zwsp_list[0:i]))
-                        
+                        current_zwsp_list = list(itertools.permutations(zwsp_list[0:i]))         
                         for j in range(len(current_zwsp_list)):
                             for threshold in range(threshold_range[0], threshold_range[1]):
                                 result = self.extract(public_text, current_zwsp_list[j], threshold, encryption)
@@ -231,31 +229,35 @@ class ZWSPTool:
                                 result = self.extract(public_text, current_zwsp_list[j], threshold, encryption)
                                 if(re.search(searched_text, result, re.IGNORECASE)):
                                     print("\n\033[37;1m{0}___________________________________◢  \033[32;1mMatch #{1}\033[0m ◣____________________________________\033[0m\n".format('_' * (len(str(cpt)) - 1), cpt))
-                                    print(result[0:preview_size])
-                                    print("\n\033[37;1m{0}____________________________________________________________________________________\033[0m\n".format('_' * (len(str(cpt)) - 1)))
+                                    print("\033[37;1mTHRESHOLD : \033[36m{0}\033[37m\nZWSP LIST : \033[36m{1}\033[0m".format(threshold, current_zwsp_list[j]))
+                                    print("\033[37;1mPREVIEW : \033[36m{0}\033[0m".format(result[0:preview_size].encode('utf-8', 'surrogateescape').decode()))
+                                    print("\033[37;1m{0}____________________________________________________________________________________\033[0m\n".format('_' * (len(str(cpt)) - 1)))
                                     cpt += 1   
                                 bar()     
             else:
                 if output:
                     file = open(output, "a")
-
                     for i in range(2, len(zwsp_list) + 1):
                         current_zwsp_list = list(itertools.permutations(zwsp_list[0:i]))
                         for j in range(len(current_zwsp_list)):
                             for threshold in range(threshold_range[0], threshold_range[1]):
-                                file.write("\n{0}. {1}".format(cpt, self.extract(public_text, current_zwsp_list[j], threshold, encryption)[0:preview_size]))
+                                file.write("\n{0}. {1}".format(cpt, self.extract(public_text, current_zwsp_list[j], threshold, encryption)[0:preview_size].encode('utf-8', 'replace').decode()))
                                 cpt += 1
                                 bar()
                     file.close()
-                    print(display.info + "\033[37;Bruteforce attempts have been saved in '\033[36;1m" + output + "\033[0m'")
+                    print(display.info + "\033[37;1mBruteforce attempts have been saved in '\033[36;1m" + output + "\033[0m'")
                 else:
                     for i in range(2, len(zwsp_list) + 1):
                         current_zwsp_list = list(itertools.permutations(zwsp_list[0:i]))
                         for j in range(len(current_zwsp_list)):
                             for threshold in range(threshold_range[0], threshold_range[1]):
                                 print("\n\033[37;1m{0}___________________________________◢  \033[32;1mAttempt #{1}\033[0m ◣____________________________________\033[0m\n".format('_' * (len(str(cpt)) - 1), cpt))
-                                print(self.extract(public_text, current_zwsp_list[j], threshold, encryption)[0:preview_size])
-                                print("\n\033[37;1m_______________________________________________________________________________________\033[0m\n")
+                                print("\033[37;1mTHRESHOLD : \033[36m{0}\033[37m\nZWSP LIST : \033[36m{1}\033[0m".format(threshold, current_zwsp_list[j]))
+                                try:
+                                    print("\033[37;1mPREVIEW : \033[36m{0}\033[0m".format(self.extract(public_text, current_zwsp_list[j], threshold, encryption)[0:preview_size].encode('utf-8', 'surrogateescape').decode()))
+                                except UnicodeEncodeError:
+                                    print("PROBLEM !")
+                                print("\033[37;1m_______________________________________________________________________________________\033[0m\n")
                                 cpt += 1
                                 bar()
         print()
@@ -449,11 +451,17 @@ try:
 
         if args.bruteforce:
             threshold_range = (35, 38)
-            clever_mode = True
-            searched_text = ""
+            clever_mode = False
+            searched_text = None
 
-            #r'[a-zA-Z\d]'
-            regex = r'[a-zA-Z]{3}' if clever_mode else (".*" + searched_text + ".*")
+            regex = None
+            if clever_mode:
+                regex = r'[a-zA-Z]{3}'
+                #r'[a-zA-Z\d]'
+            elif searched_text:
+                regex = ".*" + searched_text + ".*"
+            #regex = r'[a-zA-Z]{3}' if clever_mode else (".*" + searched_text + ".*")
+
             zwsp_tool.bruteforce(public_text, ZWSP_FULL_LIST, threshold_range, DEFAULT_PREVIEW_SIZE, regex, encryption, args.output)
         else:
             with alive_bar(bar=DETERMINATED_BAR) as bar:
@@ -476,5 +484,3 @@ try:
         parser.print_help()
 except FileNotFoundError:
     print(display.error + "\033[37;1mThe file was not found !\033[0m\n")
-except UnicodeEncodeError:
-    pass
