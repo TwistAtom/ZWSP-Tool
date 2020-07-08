@@ -29,6 +29,10 @@ import math
 import json
 import argparse
 import itertools
+from getpass import getpass
+from Crypto.Cipher import AES
+from Crypto.Protocol.KDF import PBKDF2
+from Crypto.Random import get_random_bytes
 from alive_progress import alive_bar, standard_bar_factory, scrolling_spinner_factory, unknown_bar_factory
 
 HELP_DESCRIPTION = "Wonderful tools to detect, hide, read and encrypt data in text."
@@ -78,22 +82,28 @@ DETERMINATED_BAR = standard_bar_factory(
 
 #INFINITE_BAR = unknown_bar_factory(scrolling_spinner_factory(('\033[32m►\033[0m',), 5, 2, hiding=False))
 
+SALT = b'\x16\x91}\xd4A~{e\xcc])pp\x16*G\xc97\xcauUY\xe5\x93?\xd6\xe6\x1e\x07FP\x89'
+
 class ZWSPTool:
     def __init__(self,  replacement_patten):
         self.replacement_patten = replacement_patten
         self.start()
 
+
     def start(self):
         os.system('clear')
         os.system('echo "$(cat banner/banner.txt)"')
 
+
     def to_base(self, num, b, numerals='0123456789abcdefghijklmnopqrstuvwxyz'):
         return ((num == 0) and numerals[0]) or (self.to_base(num // b, b, numerals).lstrip(numerals[0]) + numerals[num % b])
-        
+
+      
     def get_padding(self, nb_possibility, threshold):
         return int(threshold/nb_possibility)
 
-    def embed(self, public_text, private_text, zwsp_list, equalize, threshold, space_mode, unconstrain_mode, encryption):
+
+    def embed(self, public_text, private_text, zwsp_list, equalize, threshold, space_mode, unconstrain_mode):
         hidden_codes, final_text, padding = '', '', self.get_padding(len(zwsp_list), threshold)
         position, block_size, nb_spaces = 0, 1, public_text.count(' ')
 
@@ -106,9 +116,9 @@ class ZWSPTool:
 
         nbOperations = len(private_text)*padding
         if(space_mode and nb_spaces > 0):
-            nbOperations += nb_spaces
+            nbOperations += nb_spaces*2
         else:
-            nbOperations += len(public_text)
+            nbOperations += len(public_text)*2
 
         with alive_bar(nbOperations, bar=DETERMINATED_BAR) as bar:
             print(padding)
@@ -120,7 +130,6 @@ class ZWSPTool:
                 for code_char in code:
                     hidden_codes += zwsp_list[int(code_char)]
                     bar("Encoding")
-
 
             if(nb_spaces <= 0 or not space_mode):
                 if(equalize and (len(public_text) - 1) <= len(hidden_codes)):
@@ -146,6 +155,7 @@ class ZWSPTool:
                         final_text += public_text[i] + hidden_text
                         position += block_size
                     bar("Masking")
+                    bar("Masking")
                 print()  
                 return final_text
             else:
@@ -169,10 +179,12 @@ class ZWSPTool:
                     final_text = final_text.replace(' ', replacement_text, 1)
                     position += block_size    # + 1 ?
                     bar("Masking")
+                    bar("Masking")
                 print() 
                 return final_text.replace(self.replacement_patten, ' ')
-        
-    def extract(self, public_text, zwsp_list, threshold, encryption):
+
+
+    def extract(self, public_text, zwsp_list, threshold):
         encoded_text, private_text, padding = '', '', self.get_padding(len(zwsp_list), threshold)
         current_encoded_char = ''
         for char in public_text:
@@ -188,6 +200,7 @@ class ZWSPTool:
                 #bar()
         #print()    
         return private_text
+
 
     def bruteforce(self, public_text, zwsp_list, threshold_range, preview_size, searched_text, encryption, output):
         cpt = 1
@@ -214,7 +227,7 @@ class ZWSPTool:
                         current_zwsp_list = list(itertools.permutations(zwsp_list[0:i]))         
                         for j in range(len(current_zwsp_list)):
                             for threshold in range(threshold_range[0], threshold_range[1]):
-                                result = self.extract(public_text, current_zwsp_list[j], threshold, encryption)
+                                result = self.extract(public_text, current_zwsp_list[j], threshold)
                                 if(re.search(searched_text, result, re.IGNORECASE)):
                                     file.write("\n{0}. {1}".format(cpt, result[0:preview_size]))
                                     cpt += 1 
@@ -226,7 +239,7 @@ class ZWSPTool:
                         current_zwsp_list = list(itertools.permutations(zwsp_list[0:i]))
                         for j in range(len(current_zwsp_list)):
                             for threshold in range(threshold_range[0], threshold_range[1]):
-                                result = self.extract(public_text, current_zwsp_list[j], threshold, encryption)
+                                result = self.extract(public_text, current_zwsp_list[j], threshold)
                                 if(re.search(searched_text, result, re.IGNORECASE)):
                                     print("\n\033[37;1m{0}___________________________________◢  \033[32;1mMatch #{1}\033[0m ◣____________________________________\033[0m\n".format('_' * (len(str(cpt)) - 1), cpt))
                                     print("\033[37;1mTHRESHOLD : \033[36m{0}\033[37m\nZWSP LIST : \033[36m{1}\033[0m".format(threshold, current_zwsp_list[j]))
@@ -241,7 +254,7 @@ class ZWSPTool:
                         current_zwsp_list = list(itertools.permutations(zwsp_list[0:i]))
                         for j in range(len(current_zwsp_list)):
                             for threshold in range(threshold_range[0], threshold_range[1]):
-                                file.write("\n{0}. {1}".format(cpt, self.extract(public_text, current_zwsp_list[j], threshold, encryption)[0:preview_size].encode('utf-8', 'replace').decode()))
+                                file.write("\n{0}. {1}".format(cpt, self.extract(public_text, current_zwsp_list[j], threshold)[0:preview_size].encode('utf-8', 'replace').decode()))
                                 cpt += 1
                                 bar()
                     file.close()
@@ -254,19 +267,47 @@ class ZWSPTool:
                                 print("\n\033[37;1m{0}___________________________________◢  \033[32;1mAttempt #{1}\033[0m ◣____________________________________\033[0m\n".format('_' * (len(str(cpt)) - 1), cpt))
                                 print("\033[37;1mTHRESHOLD : \033[36m{0}\033[37m\nZWSP LIST : \033[36m{1}\033[0m".format(threshold, current_zwsp_list[j]))
                                 try:
-                                    print("\033[37;1mPREVIEW : \033[36m{0}\033[0m".format(self.extract(public_text, current_zwsp_list[j], threshold, encryption)[0:preview_size].encode('utf-8', 'surrogateescape').decode()))
+                                    print("\033[37;1mPREVIEW : \033[36m{0}\033[0m".format(self.extract(public_text, current_zwsp_list[j], threshold)[0:preview_size].encode('utf-8', 'surrogateescape').decode()))
                                 except UnicodeEncodeError:
                                     print("PROBLEM !")
                                 print("\033[37;1m_______________________________________________________________________________________\033[0m\n")
                                 cpt += 1
                                 bar()
         print()
-            
+
+
+    def encrypt(self, data_to_encrypt, type, password):
+        key = PBKDF2(password, SALT, dkLen=32)
+        data = data_to_encrypt.encode('utf-8')
+        cipher_encrypt = AES.new(key, AES.MODE_CFB)
+        ciphered_bytes = cipher_encrypt.encrypt(data)
+        ciphered_data = cipher_encrypt.iv + ciphered_bytes
+
+        return ciphered_data.decode('ISO-8859-1')
+
+
+    def decrypt(self, ciphered_data, type, password):
+        decrypted_data = ""
+        try:
+            ciphered_data = ciphered_data.encode('ISO-8859-1')
+            key = PBKDF2(password, SALT, dkLen=32)
+            iv = ciphered_data[0:16]
+            cipher_decrypt = AES.new(key, AES.MODE_CFB, iv=iv)
+            deciphered_bytes = cipher_decrypt.decrypt(ciphered_data[16:])
+            decrypted_data = deciphered_bytes.decode('utf-8')
+            return decrypted_data
+        except UnicodeDecodeError:
+            print(display.error + "\033[37;1mWrong password !\033[0m\n")
+        finally:
+            return decrypted_data
+
+           
 class Display(object):
     success = '\033[37;1m[\033[32;1m+\033[37;1m]\033[0m '
     info = '\033[37;1m[\033[36;1m*\033[37;1m]\033[0m '
     error = '\033[37;1m[\033[31;1m-\033[37;1m]\033[0m '
     delimiter = '\n\033[37;1m===================================================================\033[0m\n'
+
 
 def str2bool(value):
     if isinstance(value, bool):
@@ -305,7 +346,7 @@ detect_parser.add_argument("-s", "--search", dest="detectSearch", metavar="<sear
 
 #embed_parser.add_argument("-a", "--auto", dest="embedAuto", metavar="[y/yes/true, n/no/false]", help="-", nargs='?', const=True, default=True, type=str2bool)
 embed_parser.add_argument("-c", "--characters", dest="embedCharacters", metavar="[<char_1>, <char_2>]", help="Zero width space characters to use to form the binary code.", type=str)
-embed_parser.add_argument("-e", "--encryption", dest="embedEncryption", metavar="[PGP, RSA, AES]", help="Encryption type.", type=str)
+embed_parser.add_argument("-e", "--encryption", dest="embedEncryption", metavar="[AES, RSA, PGP]", choices=['AES', 'RSA', 'PGP'], help="Encryption type.")
 embed_mask_group = embed_parser.add_mutually_exclusive_group(required=True)
 embed_mask_group.add_argument("-m", "--mask", dest="embedPrivate", metavar="<hidden_text>", help="Text to hide in another text (public text).", type=str)
 embed_mask_group.add_argument("-M", "--mfile", dest="embedPrivateFile", metavar="<path_to_file>", help="Text from a file to hide in another text (public text).", type=str)
@@ -318,6 +359,7 @@ embed_parser.add_argument("-u", "--unconstrain", dest="embedUnconstrain", metava
 embed_parser.add_argument("-z", "--equalize", dest="embedEqualize", metavar="[y/yes/true, n/no/false]", help="If enabled, evenly distribute the zero width spaces, corresponding to the hidden text (private text), on the set of visible spaces of the cover text (public text).", nargs='?', const=True, default=DEFAULT_EQUALIZATION_VALUE, type=str2bool)
 
 extract_parser.add_argument("-b", "--bruteforce", dest="bruteforce", help="Test all possible characters and combinations to extract data.", action="store_true")
+extract_parser.add_argument("-e", "--encryption", dest="extractEncryption", metavar="[AES, RSA, PGP]", choices=['AES', 'RSA', 'PGP'], help="Encryption type.")
 extract_public_group = extract_parser.add_mutually_exclusive_group(required=True)
 extract_public_group.add_argument("-p", "--public", dest="extractPublic", metavar="<public_text>", help="Cover text containing zero width space characters to extract.", type=str)
 extract_public_group.add_argument("-P", "--pfile", dest="extractPublicFile", metavar="<path_to_file>", help="Use text cover from a file, containing zero width space characters for extraction.", type=str)
@@ -406,7 +448,7 @@ try:
         space_mode = args.embedSpace
         unconstrain_mode = args.embedUnconstrain
         threshold = args.embedThreshold if args.embedThreshold else DEFAULT_THRESHOLD_VALUE
-        encryption = args.embedEncryption if args.embedEncryption else DEFAULT_ENCRYPTION_VALUE
+        #encryption = args.embedEncryption if args.embedEncryption else DEFAULT_ENCRYPTION_VALUE
 
         if args.embedPublic:
             public_text = args.embedPublic
@@ -422,7 +464,21 @@ try:
             private_text = file.read()
             file.close()
 
-        final_text = zwsp_tool.embed(public_text, private_text, ZWSP_LIST, equalize, threshold, space_mode, unconstrain_mode, encryption)
+        if args.embedEncryption:
+            password = ""
+            if args.embedEncryption == "AES":
+                valid = False
+                while(not valid):
+                    password = getpass("\033[32;1mEnter the password to encrypt the hidden text with AES : \033[0m\n")
+                    password_verif = getpass("\n\033[32;1mConfirm password : \033[0m\n")
+                    if(password == password_verif):
+                        valid = True
+                    else:
+                        print(display.error + "\033[37;1mPasswords do not match !\033[0m\n\n")
+
+            private_text = zwsp_tool.encrypt(private_text, args.embedEncryption, password)
+
+        final_text = zwsp_tool.embed(public_text, private_text, ZWSP_LIST, equalize, threshold, space_mode, unconstrain_mode)
         print()
 
         if args.output:
@@ -437,7 +493,7 @@ try:
             print(final_text)
             print(display.delimiter + "\n")
     elif args.command == "extract":
-        public_text, private_text = "", ""
+        public_text, private_text, password = "", "", ""
         #equalize = args.embedEqualize if args.embedEqualize else DEFAULT_EQUALIZATION_VALUE
         threshold = DEFAULT_THRESHOLD_VALUE
         encryption = DEFAULT_ENCRYPTION_VALUE
@@ -448,6 +504,10 @@ try:
             file = open(args.extractPublicFile, "r")
             public_text = file.read()
             file.close()
+
+        if args.extractEncryption:
+            if args.extractEncryption == "AES":
+                password = getpass("\033[32;1mEnter the password to decrypt the hidden text with AES : \033[0m\n")
 
         if args.bruteforce:
             threshold_range = (35, 38)
@@ -464,8 +524,11 @@ try:
 
             zwsp_tool.bruteforce(public_text, ZWSP_FULL_LIST, threshold_range, DEFAULT_PREVIEW_SIZE, regex, encryption, args.output)
         else:
-            with alive_bar(bar=DETERMINATED_BAR) as bar:
-                private_text = zwsp_tool.extract(public_text, ZWSP_LIST, threshold, encryption)
+            with alive_bar(bar=DETERMINATED_BAR, enrich_print=False) as bar:
+                private_text = zwsp_tool.extract(public_text, ZWSP_LIST, threshold)
+                if args.extractEncryption == "AES":
+                    private_text = zwsp_tool.decrypt(private_text, args.extractEncryption, password)
+
             if args.output:
                 file = open(args.output, "a")
                 file.write(private_text)
