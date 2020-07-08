@@ -116,11 +116,11 @@ class ZWSPTool:
 
         nbOperations = len(private_text)*padding
         if(space_mode and nb_spaces > 0):
-            nbOperations += nb_spaces*2
+            nbOperations += nb_spaces*100
         else:
-            nbOperations += len(public_text)*2
+            nbOperations += len(public_text)*100
 
-        with alive_bar(nbOperations, bar=DETERMINATED_BAR) as bar:
+        with alive_bar(nbOperations, bar=DETERMINATED_BAR, calibrate=1) as bar:
             print(padding)
             print(equalize)
 
@@ -154,8 +154,7 @@ class ZWSPTool:
                             break
                         final_text += public_text[i] + hidden_text
                         position += block_size
-                    bar("Masking")
-                    bar("Masking")
+                    bar("Masking", incr=100)
                 print()  
                 return final_text
             else:
@@ -178,8 +177,7 @@ class ZWSPTool:
                     
                     final_text = final_text.replace(' ', replacement_text, 1)
                     position += block_size    # + 1 ?
-                    bar("Masking")
-                    bar("Masking")
+                    bar("Masking", incr=100)
                 print() 
                 return final_text.replace(self.replacement_patten, ' ')
 
