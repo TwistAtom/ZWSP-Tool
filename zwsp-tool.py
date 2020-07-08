@@ -193,6 +193,8 @@ class ZWSPTool:
         for index, char in enumerate(encoded_text):
             current_encoded_char += char
             if((index + 1) % padding == 0 and index > 0):
+                #print(current_encoded_char)
+                #print(len(zwsp_list))
                 private_text += chr(int(current_encoded_char, len(zwsp_list)))
                 current_encoded_char = ''
                 #bar()
@@ -200,7 +202,7 @@ class ZWSPTool:
         return private_text
 
 
-    def bruteforce(self, public_text, zwsp_list, threshold_range, preview_size, searched_text, encryption, output):
+    def bruteforce(self, public_text, zwsp_list, threshold_range, base, preview_size, searched_text, encryption, output):
         cpt = 1
 
         #def powerset(iterable):
@@ -211,18 +213,24 @@ class ZWSPTool:
         #print(len(list(powerset(zwsp_list)))*(threshold_range[1] - threshold_range[0]))
         #nbOperations = (math.factorial(len(zwsp_list)))*(threshold_range[1] - threshold_range[0])
 
-        nbOperations = 0
+        nbOperations, zwsp_groups = 0, []
+        #base = base if base else 
         for i in range(2, len(zwsp_list) + 1):
-                nbOperations += len(list(itertools.permutations(zwsp_list[0:i])))
-        nbOperations *= (threshold_range[1] - threshold_range[0])
+            nbOperations += len(list(itertools.permutations(zwsp_list[0:i])))
+            zwsp_groups += list(itertools.permutations(zwsp_list[0:i], base))
 
+        print(zwsp_groups)
+        zwsp_groups = list(set(zwsp_groups))
+
+        nbOperations *= (threshold_range[1] - threshold_range[0])
+        print(len(zwsp_groups))
         print(searched_text)
         with alive_bar(nbOperations, bar=DETERMINATED_BAR, enrich_print=False) as bar:
             if searched_text:
                 if output:
                     file = open(output, "a")
                     for i in range(2, len(zwsp_list) + 1):
-                        current_zwsp_list = list(itertools.permutations(zwsp_list[0:i]))         
+                        current_zwsp_list = list(itertools.permutations(zwsp_list[0:i]))
                         for j in range(len(current_zwsp_list)):
                             for threshold in range(threshold_range[0], threshold_range[1]):
                                 result = self.extract(public_text, current_zwsp_list[j], threshold)
@@ -495,6 +503,7 @@ try:
         #equalize = args.embedEqualize if args.embedEqualize else DEFAULT_EQUALIZATION_VALUE
         threshold = DEFAULT_THRESHOLD_VALUE
         encryption = DEFAULT_ENCRYPTION_VALUE
+        base = None
 
         if args.extractPublic:
             public_text = args.extractPublic
@@ -508,8 +517,8 @@ try:
                 password = getpass("\033[32;1mEnter the password to decrypt the hidden text with AES : \033[0m\n")
 
         if args.bruteforce:
-            threshold_range = (35, 38)
-            clever_mode = False
+            threshold_range = (10, 18)
+            clever_mode = True
             searched_text = None
 
             regex = None
@@ -520,7 +529,7 @@ try:
                 regex = ".*" + searched_text + ".*"
             #regex = r'[a-zA-Z]{3}' if clever_mode else (".*" + searched_text + ".*")
 
-            zwsp_tool.bruteforce(public_text, ZWSP_FULL_LIST, threshold_range, DEFAULT_PREVIEW_SIZE, regex, encryption, args.output)
+            zwsp_tool.bruteforce(public_text, ZWSP_FULL_LIST, threshold_range, base, DEFAULT_PREVIEW_SIZE, regex, encryption, args.output)
         else:
             with alive_bar(bar=DETERMINATED_BAR, enrich_print=False) as bar:
                 private_text = zwsp_tool.extract(public_text, ZWSP_LIST, threshold)
