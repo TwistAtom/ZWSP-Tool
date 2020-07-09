@@ -218,10 +218,10 @@ class ZWSPTool:
         nbOperations, zwsp_groups = 0, []
         #base = base if base else 
         for i in range(2, len(zwsp_list) + 1):
-            nbOperations += len(list(itertools.permutations(zwsp_list[0:i])))
             zwsp_groups += list(itertools.permutations(zwsp_list[0:i], base))
 
         zwsp_groups = list(set(zwsp_groups))
+        nbOperations += len(zwsp_groups)
 
         nbOperations *= (threshold_range[1] - threshold_range[0])
         print(len(zwsp_groups))
@@ -230,30 +230,26 @@ class ZWSPTool:
             if searched_text:
                 if output:
                     file = open(output, "a")
-                    for i in range(2, len(zwsp_list) + 1):
-                        current_zwsp_list = list(itertools.permutations(zwsp_list[0:i]))
-                        for j in range(len(current_zwsp_list)):
-                            for threshold in range(threshold_range[0], threshold_range[1]):
-                                result = self.extract(public_text, current_zwsp_list[j], threshold)
-                                if(re.search(searched_text, result, re.IGNORECASE)):
-                                    file.write("\n{0}. {1}".format(cpt, result[0:preview_size]))
-                                    cpt += 1 
-                                bar()
+                    for i in range(len(zwsp_groups)):
+                        for threshold in range(threshold_range[0], threshold_range[1]):
+                            result = self.extract(public_text, zwsp_groups[i], threshold)
+                            if(re.search(searched_text, result, re.IGNORECASE)):
+                                file.write("\n{0}. {1}".format(cpt, result[0:preview_size]))
+                                cpt += 1 
+                            bar()
                     file.close()
                     print(display.info + "\033[37;1mBruteforce matches have been saved in '\033[36;1m" + output + "\033[0m'")
                 else:
-                    for i in range(2, len(zwsp_list) + 1):
-                        current_zwsp_list = list(itertools.permutations(zwsp_list[0:i]))
-                        for j in range(len(current_zwsp_list)):
-                            for threshold in range(threshold_range[0], threshold_range[1]):
-                                result = self.extract(public_text, current_zwsp_list[j], threshold)
-                                if(re.search(searched_text, result, re.IGNORECASE)):
-                                    print("\n\033[37;1m{0}___________________________________◢  \033[32;1mMatch #{1}\033[0m ◣____________________________________\033[0m\n".format('_' * (len(str(cpt)) - 1), cpt))
-                                    print("\033[37;1mTHRESHOLD : \033[36m{0}\033[37m\nZWSP LIST : \033[36m{1}\033[0m".format(threshold, current_zwsp_list[j]))
-                                    print("\033[37;1mPREVIEW : \033[36m{0}\033[0m".format(result[0:preview_size].encode('utf-8', 'surrogateescape').decode()))
-                                    print("\033[37;1m{0}____________________________________________________________________________________\033[0m\n".format('_' * (len(str(cpt)) - 1)))
-                                    cpt += 1   
-                                bar()     
+                    for i in range(len(zwsp_groups)):
+                        for threshold in range(threshold_range[0], threshold_range[1]):
+                            result = self.extract(public_text, zwsp_groups[i], threshold)
+                            if(re.search(searched_text, result, re.IGNORECASE)):
+                                print("\n\033[37;1m{0}___________________________________◢  \033[32;1mMatch #{1}\033[0m ◣____________________________________\033[0m\n".format('_' * (len(str(cpt)) - 1), cpt))
+                                print("\033[37;1mTHRESHOLD : \033[36m{0}\033[37m\nZWSP LIST : \033[36m{1}\033[0m".format(threshold, zwsp_groups[i]))
+                                print("\033[37;1mPREVIEW : \033[36m{0}\033[0m".format(result[0:preview_size].encode('utf-8', 'surrogateescape').decode()))
+                                print("\033[37;1m{0}____________________________________________________________________________________\033[0m\n".format('_' * (len(str(cpt)) - 1)))
+                                cpt += 1   
+                            bar()     
             else:
                 if output:
                     file = open(output, "a")
