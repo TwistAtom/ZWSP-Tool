@@ -16,7 +16,7 @@ clear
 sleep 0.5
 echo -e "$(cat banner/banner.txt)"
 echo
-sleep 0.5
+sleep 1
 
 echo -e $INFO"\033[37;1mUninstalling...\033[0m"
 
@@ -29,7 +29,6 @@ rm /data/data/com.termux/files/usr/bin/zwsp-tool
 
 sleep 0.5
 cd
-clear
 echo -e $SUCCESS"\033[37;1mSuccessfully uninstalled !\033[0m"
 echo
 sleep 1
