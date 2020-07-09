@@ -11,9 +11,25 @@ then
    exit
 fi
 
+sleep 0.5
+clear
+sleep 0.5
+echo -e "$(cat banner/banner.txt)"
+echo
+sleep 0.5
+
+echo -e $INFO"\033[37;1mUninstalling...\033[0m"
+
 {
 rm -rf ~/ZWSP-Tool
 rm /bin/zwsp-tool
 rm /usr/local/bin/zwsp-tool
 rm /data/data/com.termux/files/usr/bin/zwsp-tool
 } &> /dev/null
+
+sleep 0.5
+cd
+clear
+echo -e $SUCCESS"\033[37;1mSuccessfully uninstalled !\033[0m"
+echo
+sleep 1
