@@ -43,7 +43,9 @@ DEFAULT_SPACE_MODE_VALUE = True
 DEFAULT_UNCONSTRAIN_VALUE = False #bug
 DEFAULT_EQUALIZATION_VALUE = True
 DEFAULT_THRESHOLD_VALUE = 35
+DEFAULT_THRESHOLD_RANGE_VALUE = (10, 38)
 DEFAULT_ENCRYPTION_VALUE = None
+DEFAULT_WILY_MODE_VALUE = False
 
 ZERO_WIDTH_SPACE = '\u200b'
 ZERO_WIDTH_NON_JOINER = '\u200c'
@@ -219,7 +221,6 @@ class ZWSPTool:
             nbOperations += len(list(itertools.permutations(zwsp_list[0:i])))
             zwsp_groups += list(itertools.permutations(zwsp_list[0:i], base))
 
-        print(zwsp_groups)
         zwsp_groups = list(set(zwsp_groups))
 
         nbOperations *= (threshold_range[1] - threshold_range[0])
@@ -256,29 +257,25 @@ class ZWSPTool:
             else:
                 if output:
                     file = open(output, "a")
-                    for i in range(2, len(zwsp_list) + 1):
-                        current_zwsp_list = list(itertools.permutations(zwsp_list[0:i]))
-                        for j in range(len(current_zwsp_list)):
-                            for threshold in range(threshold_range[0], threshold_range[1]):
-                                file.write("\n{0}. {1}".format(cpt, self.extract(public_text, current_zwsp_list[j], threshold)[0:preview_size].encode('utf-8', 'replace').decode()))
-                                cpt += 1
-                                bar()
+                    for i in range(len(zwsp_groups)):
+                        for threshold in range(threshold_range[0], threshold_range[1]):
+                            file.write("\n{0}. {1}".format(cpt, self.extract(public_text, zwsp_groups[i], threshold)[0:preview_size].encode('utf-8', 'replace').decode()))
+                            cpt += 1
+                            bar()
                     file.close()
                     print(display.info + "\033[37;1mBruteforce attempts have been saved in '\033[36;1m" + output + "\033[0m'")
                 else:
-                    for i in range(2, len(zwsp_list) + 1):
-                        current_zwsp_list = list(itertools.permutations(zwsp_list[0:i]))
-                        for j in range(len(current_zwsp_list)):
-                            for threshold in range(threshold_range[0], threshold_range[1]):
-                                print("\n\033[37;1m{0}___________________________________◢  \033[32;1mAttempt #{1}\033[0m ◣____________________________________\033[0m\n".format('_' * (len(str(cpt)) - 1), cpt))
-                                print("\033[37;1mTHRESHOLD : \033[36m{0}\033[37m\nZWSP LIST : \033[36m{1}\033[0m".format(threshold, current_zwsp_list[j]))
-                                try:
-                                    print("\033[37;1mPREVIEW : \033[36m{0}\033[0m".format(self.extract(public_text, current_zwsp_list[j], threshold)[0:preview_size].encode('utf-8', 'surrogateescape').decode()))
-                                except UnicodeEncodeError:
-                                    print("PROBLEM !")
-                                print("\033[37;1m_______________________________________________________________________________________\033[0m\n")
-                                cpt += 1
-                                bar()
+                    for i in range(len(zwsp_groups)):
+                        for threshold in range(threshold_range[0], threshold_range[1]):
+                            print("\n\033[37;1m{0}___________________________________◢  \033[32;1mAttempt #{1}\033[0m ◣____________________________________\033[0m\n".format('_' * (len(str(cpt)) - 1), cpt))
+                            print("\033[37;1mTHRESHOLD : \033[36m{0}\033[37m\nZWSP LIST : \033[36m{1}\033[0m".format(threshold, zwsp_groups[i]))
+                            try:
+                                print("\033[37;1mPREVIEW : \033[36m{0}\033[0m".format(self.extract(public_text, zwsp_groups[i], threshold)[0:preview_size].encode('utf-8', 'surrogateescape').decode()))
+                            except UnicodeEncodeError:
+                                print("ERROR !")
+                            print("\033[37;1m_______________________________________________________________________________________\033[0m\n")
+                            cpt += 1
+                            bar()
         print()
 
 
@@ -336,6 +333,7 @@ clean_parser = subparsers.add_parser('clean', help='Clean zero width space in te
 detect_parser = subparsers.add_parser('detect', help='Detect zero width space in text.', description='Detect zero width space in text.')
 embed_parser = subparsers.add_parser('embed', help='Hide private text, with zero width spaces in a cover text.', description='Hide private text, with zero width spaces in a cover text.')
 extract_parser = subparsers.add_parser('extract', help='Extract private text from cover text containing zero width spaces.', description='Extract private text from cover text containing zero width spaces.')
+bruteforce_parser = subparsers.add_parser('bruteforce', help='Test all possible characters and combinations to extract data.', description='Test all possible characters and combinations to extract data.')
 
 clean_parser.add_argument("-i", "--ignore", dest="cleanIgnore", metavar="<ignored_character>", help="Ignore characters.", type=str)
 clean_public_group = clean_parser.add_mutually_exclusive_group(required=True)
@@ -351,7 +349,7 @@ detect_parser.add_argument("-r", "--replace", dest="detectReplace", help="Charac
 detect_parser.add_argument("-s", "--search", dest="detectSearch", metavar="<search_character>", help="Search characters.", type=str)
 
 #embed_parser.add_argument("-a", "--auto", dest="embedAuto", metavar="[y/yes/true, n/no/false]", help="-", nargs='?', const=True, default=True, type=str2bool)
-embed_parser.add_argument("-c", "--characters", dest="embedCharacters", metavar="[<char_1>, <char_2>]", help="Zero width space characters to use to form the binary code.", type=str)
+embed_parser.add_argument("-c", "--characters", dest="embedCharacters", metavar="[<char_1>, <char_2>]", help="Zero width characters to use to encode the private text.", type=str)
 embed_parser.add_argument("-e", "--encryption", dest="embedEncryption", metavar="[AES, RSA, PGP]", choices=['AES', 'RSA', 'PGP'], help="Encryption type.")
 embed_mask_group = embed_parser.add_mutually_exclusive_group(required=True)
 embed_mask_group.add_argument("-m", "--mask", dest="embedPrivate", metavar="<hidden_text>", help="Text to hide in another text (public text).", type=str)
@@ -364,11 +362,22 @@ embed_parser.add_argument("-t", "--threshold", dest="embedThreshold", metavar="<
 embed_parser.add_argument("-u", "--unconstrain", dest="embedUnconstrain", metavar="[y/yes/true, n/no/false]", help="If enabled (enabled by default), hides the masking parameters with the private text in the cover text (public text). In order not to need to remember the parameters at the time of extraction.", nargs='?', const=True, default=DEFAULT_UNCONSTRAIN_VALUE, type=str2bool)
 embed_parser.add_argument("-z", "--equalize", dest="embedEqualize", metavar="[y/yes/true, n/no/false]", help="If enabled, evenly distribute the zero width spaces, corresponding to the hidden text (private text), on the set of visible spaces of the cover text (public text).", nargs='?', const=True, default=DEFAULT_EQUALIZATION_VALUE, type=str2bool)
 
-extract_parser.add_argument("-b", "--bruteforce", dest="bruteforce", help="Test all possible characters and combinations to extract data.", action="store_true")
 extract_parser.add_argument("-e", "--encryption", dest="extractEncryption", metavar="[AES, RSA, PGP]", choices=['AES', 'RSA', 'PGP'], help="Encryption type.")
 extract_public_group = extract_parser.add_mutually_exclusive_group(required=True)
 extract_public_group.add_argument("-p", "--public", dest="extractPublic", metavar="<public_text>", help="Cover text containing zero width space characters to extract.", type=str)
 extract_public_group.add_argument("-P", "--pfile", dest="extractPublicFile", metavar="<path_to_file>", help="Use text cover from a file, containing zero width space characters for extraction.", type=str)
+
+
+bruteforce_parser.add_argument("-b", "--base", dest="bruteforceBase", metavar="<base>", help="Manually choose a fixed base (e.g : 2 for binary) to force the text. Please note, the base chosen cannot exceed the number of zero width spaces available in the lists.", type=int)
+bruteforce_parser.add_argument("-c", "--characters", dest="bruteforceCharacters", metavar="[<char_1>, <char_2>]", help="Zero width characters to use to decode the private text.", default=ZWSP_FULL_LIST, type=str)
+bruteforce_parser.add_argument("-d", "--demo", dest="bruteforceDemo", metavar="<preview_size>", help="Size of the preview in number of characters. This allows you to quickly view and analyze bruteforce attempts.", default=DEFAULT_PREVIEW_SIZE, type=int)
+bruteforce_parser.add_argument("-e", "--encryption", dest="bruteforceEncryption", metavar="[AES, RSA, PGP]", choices=['AES', 'RSA', 'PGP'], help="Encryption type.", default=DEFAULT_ENCRYPTION_VALUE)
+bruteforce_public_group = bruteforce_parser.add_mutually_exclusive_group(required=True)
+bruteforce_public_group.add_argument("-p", "--public", dest="bruteforcePublic", metavar="<public_text>", help="Cover text containing zero width space characters to extract.", type=str)
+bruteforce_public_group.add_argument("-P", "--pfile", dest="bruteforcePublicFile", metavar="<path_to_file>", help="Use text cover from a file, containing zero width space characters for extraction.", type=str)
+bruteforce_parser.add_argument("-s", "--search", dest="bruteforceSearch", metavar="<search_term>", help="Specific terms to search for validate a bruteforce attempt.", type=str)
+bruteforce_parser.add_argument("-t", "--threshold", dest="bruteforceThreshold", metavar="[<start_range>, <end_range>]", help="Size of an encoding string, the larger the number, the more it is possible to encode different characters. Select the threshold range to test.", default=DEFAULT_THRESHOLD_RANGE_VALUE, type=int)
+bruteforce_parser.add_argument("-w", "--wily", dest="bruteforceWily", help="Intelligent algorithm that only selects attempts that can be interesting to study. Please note that this is largely based on the composition of the latin alphabet.", default=DEFAULT_WILY_MODE_VALUE, action="store_true")
 
 parser.add_argument("-o", "--output", dest="output", metavar="<output_file>", help="File to store the results.", type=str)
 verbose_group = parser.add_mutually_exclusive_group()
@@ -516,25 +525,10 @@ try:
             if args.extractEncryption == "AES":
                 password = getpass("\033[32;1mEnter the password to decrypt the hidden text with AES : \033[0m\n")
 
-        if args.bruteforce:
-            threshold_range = (10, 18)
-            clever_mode = True
-            searched_text = None
-
-            regex = None
-            if clever_mode:
-                regex = r'[a-zA-Z]{3}'
-                #r'[a-zA-Z\d]'
-            elif searched_text:
-                regex = ".*" + searched_text + ".*"
-            #regex = r'[a-zA-Z]{3}' if clever_mode else (".*" + searched_text + ".*")
-
-            zwsp_tool.bruteforce(public_text, ZWSP_FULL_LIST, threshold_range, base, DEFAULT_PREVIEW_SIZE, regex, encryption, args.output)
-        else:
-            with alive_bar(bar=DETERMINATED_BAR, enrich_print=False) as bar:
-                private_text = zwsp_tool.extract(public_text, ZWSP_LIST, threshold)
-                if args.extractEncryption == "AES":
-                    private_text = zwsp_tool.decrypt(private_text, args.extractEncryption, password)
+        with alive_bar(bar=DETERMINATED_BAR, enrich_print=False) as bar:
+            private_text = zwsp_tool.extract(public_text, ZWSP_LIST, threshold)
+            if args.extractEncryption == "AES":
+                private_text = zwsp_tool.decrypt(private_text, args.extractEncryption, password)
 
             if args.output:
                 file = open(args.output, "a")
@@ -547,6 +541,34 @@ try:
                 print(display.delimiter)
                 print(private_text)
                 print(display.delimiter + "\n")
+    elif args.command == "bruteforce":
+        public_text, password = "", ""
+        clever_mode = args.bruteforceWily
+        searched_text = args.bruteforceSearch
+        preview_size = args.bruteforceDemo
+        threshold_range = args.bruteforceThreshold
+        zwsp_list = args.bruteforceCharacters
+        encryption = args.bruteforceEncryption
+        base = args.bruteforceBase
+        regex = None
+
+        print(clever_mode)
+
+        if args.bruteforcePublic:
+            public_text = args.bruteforcePublic
+        elif args.bruteforcePublicFile:
+            file = open(args.bruteforcePublicFile, "r")
+            public_text = file.read()
+            file.close()
+
+        if clever_mode:
+            regex = r'[a-zA-Z]{3}'
+            #r'[a-zA-Z\d]'
+        elif searched_text:
+            regex = ".*" + searched_text + ".*"
+
+        zwsp_tool.bruteforce(public_text, zwsp_list, threshold_range, base, preview_size, regex, encryption, args.output)
+        #zwsp_tool.bruteforce(public_text, ZWSP_FULL_LIST, threshold_range, base, DEFAULT_PREVIEW_SIZE, regex, encryption, args.output)
 
     elif args.verbose:
         print("verbosity turned on")
