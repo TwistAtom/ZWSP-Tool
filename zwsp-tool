@@ -97,8 +97,8 @@ class ZWSPTool:
         os.system('echo "$(cat banner/banner.txt)"')
 
 
-    def to_base(self, num, b, numerals='0123456789abcdefghijklmnopqrstuvwxyz'):
-        return ((num == 0) and numerals[0]) or (self.to_base(num // b, b, numerals).lstrip(numerals[0]) + numerals[num % b])
+    def to_base(self, num, base, numerals='0123456789abcdefghijklmnopqrstuvwxyz'):
+        return ((num == 0) and numerals[0]) or (self.to_base(num // base, base, numerals).lstrip(numerals[0]) + numerals[num % base])
 
       
     def get_padding(self, nb_possibility, threshold):
@@ -116,22 +116,18 @@ class ZWSPTool:
             }, separators=(',',':'))
             private_text = ''.join((settings, private_text))
 
-        nbOperations = len(private_text)*padding
+        nb_operations = len(private_text)
         if(space_mode and nb_spaces > 0):
-            nbOperations += nb_spaces*100
+            nb_operations += nb_spaces*100
         else:
-            nbOperations += len(public_text)*100
+            nb_operations += len(public_text)*100
 
-        with alive_bar(nbOperations, bar=DETERMINATED_BAR, calibrate=1) as bar:
-            print(padding)
-            print(equalize)
-
+        with alive_bar(nb_operations, bar=DETERMINATED_BAR, calibrate=1, enrich_print=False) as bar:
             for char in private_text:
                 code = str(self.to_base(ord(char), len(zwsp_list))).zfill(padding)
-                #print(code)
                 for code_char in code:
                     hidden_codes += zwsp_list[int(code_char)]
-                    bar("Encoding")
+                bar("Encoding")
 
             if(nb_spaces <= 0 or not space_mode):
                 if(equalize and (len(public_text) - 1) <= len(hidden_codes)):
@@ -141,7 +137,6 @@ class ZWSPTool:
                 else:
                     return
                 
-                print("block_size : " + str(block_size))
                 for i in range(len(public_text)):
                     hidden_text = ''
 
@@ -178,7 +173,7 @@ class ZWSPTool:
                         break
                     
                     final_text = final_text.replace(' ', replacement_text, 1)
-                    position += block_size    # + 1 ?
+                    position += block_size
                     bar("Masking", incr=100)
                 print() 
                 return final_text.replace(self.replacement_patten, ' ')
@@ -190,43 +185,28 @@ class ZWSPTool:
         for char in public_text:
             if char in zwsp_list:
                 encoded_text += str(zwsp_list.index(char))
-                #bar()
             
         for index, char in enumerate(encoded_text):
             current_encoded_char += char
             if((index + 1) % padding == 0 and index > 0):
-                #print(current_encoded_char)
-                #print(len(zwsp_list))
                 private_text += chr(int(current_encoded_char, len(zwsp_list)))
-                current_encoded_char = ''
-                #bar()
-        #print()    
+                current_encoded_char = ''   
         return private_text
 
 
     def bruteforce(self, public_text, zwsp_list, threshold_range, base, preview_size, searched_text, encryption, output):
-        cpt = 1
+        nb_operations, cpt, zwsp_groups = 0, 1, []
 
-        #def powerset(iterable):
-            #s = list(iterable)
-            #return itertools.chain.from_iterable(itertools.combinations(s, r) for r in range(len(s)+1))
-
-        #print(list(powerset(zwsp_list)))
-        #print(len(list(powerset(zwsp_list)))*(threshold_range[1] - threshold_range[0]))
-        #nbOperations = (math.factorial(len(zwsp_list)))*(threshold_range[1] - threshold_range[0])
-
-        nbOperations, zwsp_groups = 0, []
-        #base = base if base else 
         for i in range(2, len(zwsp_list) + 1):
             zwsp_groups += list(itertools.permutations(zwsp_list[0:i], base))
 
         zwsp_groups = list(set(zwsp_groups))
-        nbOperations += len(zwsp_groups)
+        nb_operations += len(zwsp_groups)
 
-        nbOperations *= (threshold_range[1] - threshold_range[0])
+        nb_operations *= (threshold_range[1] - threshold_range[0])
         print(len(zwsp_groups))
         print(searched_text)
-        with alive_bar(nbOperations, bar=DETERMINATED_BAR, enrich_print=False) as bar:
+        with alive_bar(nb_operations, bar=DETERMINATED_BAR, enrich_print=False) as bar:
             if searched_text:
                 if output:
                     file = open(output, "a")
@@ -300,7 +280,7 @@ class ZWSPTool:
         finally:
             return decrypted_data
 
-           
+
 class Display(object):
     success = '\033[37;1m[\033[32;1m+\033[37;1m]\033[0m '
     info = '\033[37;1m[\033[36;1m*\033[37;1m]\033[0m '
@@ -345,7 +325,7 @@ detect_parser.add_argument("-r", "--replace", dest="detectReplace", help="Charac
 detect_parser.add_argument("-s", "--search", dest="detectSearch", metavar="<search_character>", help="Search characters.", type=str)
 
 #embed_parser.add_argument("-a", "--auto", dest="embedAuto", metavar="[y/yes/true, n/no/false]", help="-", nargs='?', const=True, default=True, type=str2bool)
-embed_parser.add_argument("-c", "--characters", dest="embedCharacters", metavar="[<char_1>, <char_2>]", help="Zero width characters to use to encode the private text.", type=str)
+embed_parser.add_argument("-c", "--characters", dest="embedCharacters", metavar="\"<char_1>, <char_2>, ...\"", help="Zero width characters to use to encode the private text.", type=str)
 embed_parser.add_argument("-e", "--encryption", dest="embedEncryption", metavar="[AES, RSA, PGP]", choices=['AES', 'RSA', 'PGP'], help="Encryption type.")
 embed_mask_group = embed_parser.add_mutually_exclusive_group(required=True)
 embed_mask_group.add_argument("-m", "--mask", dest="embedPrivate", metavar="<hidden_text>", help="Text to hide in another text (public text).", type=str)
@@ -354,10 +334,11 @@ embed_public_group = embed_parser.add_mutually_exclusive_group(required=True)
 embed_public_group.add_argument("-p", "--public", dest="embedPublic", metavar="<public_text>", help="Cover text for hidden text (private text).", type=str)
 embed_public_group.add_argument("-P", "--pfile", dest="embedPublicFile", metavar="<path_to_file>", help="Use text cover from a file, for hidden text (private text).", type=str)
 embed_parser.add_argument("-s", "--space", dest="embedSpace", metavar="[y/yes/true, n/no/false]", help="If enabled, it allows a better discretion by only putting spaces of zero width in existing visible spaces.", nargs='?', const=True, default=DEFAULT_SPACE_MODE_VALUE, type=str2bool)
-embed_parser.add_argument("-t", "--threshold", dest="embedThreshold", metavar="<number>", help="Size of an encoding string, the larger the number, the more it is possible to encode different characters. However it is best to keep a small size in order to remain discreet.", type=int)
+embed_parser.add_argument("-t", "--threshold", dest="embedThreshold", metavar="<number>", help="Size of an encoding string, the larger the number, the more it is possible to encode different characters. However it is best to keep a small size in order to remain discreet. ({0} by default)".format(DEFAULT_THRESHOLD_VALUE), default=DEFAULT_THRESHOLD_VALUE, type=int)
 embed_parser.add_argument("-u", "--unconstrain", dest="embedUnconstrain", metavar="[y/yes/true, n/no/false]", help="If enabled (enabled by default), hides the masking parameters with the private text in the cover text (public text). In order not to need to remember the parameters at the time of extraction.", nargs='?', const=True, default=DEFAULT_UNCONSTRAIN_VALUE, type=str2bool)
 embed_parser.add_argument("-z", "--equalize", dest="embedEqualize", metavar="[y/yes/true, n/no/false]", help="If enabled, evenly distribute the zero width spaces, corresponding to the hidden text (private text), on the set of visible spaces of the cover text (public text).", nargs='?', const=True, default=DEFAULT_EQUALIZATION_VALUE, type=str2bool)
 
+extract_parser.add_argument("-c", "--characters", dest="extractCharacters", metavar="\"<char_1>, <char_2>, ...\"", help="Zero width characters to use to decode the private text.", type=str)
 extract_parser.add_argument("-e", "--encryption", dest="extractEncryption", metavar="[AES, RSA, PGP]", choices=['AES', 'RSA', 'PGP'], help="Encryption type.")
 extract_public_group = extract_parser.add_mutually_exclusive_group(required=True)
 extract_public_group.add_argument("-p", "--public", dest="extractPublic", metavar="<public_text>", help="Cover text containing zero width space characters to extract.", type=str)
@@ -381,7 +362,6 @@ verbose_group.add_argument("-q", "--quiet", dest="quiet", help="Disable output v
 verbose_group.add_argument("-v", "--verbose", dest="verbose", help="Increase output verbosity.", action="store_true")
 
 args = parser.parse_args()
-
 
 try:
     if args.command == "clean": 
@@ -454,12 +434,12 @@ try:
             print(display.delimiter + "\n")
     elif args.command == "embed":
         public_text, private_text, final_text = "", "", ""
-        print(args.embedEqualize)
         equalize = args.embedEqualize
         space_mode = args.embedSpace
         unconstrain_mode = args.embedUnconstrain
-        threshold = args.embedThreshold if args.embedThreshold else DEFAULT_THRESHOLD_VALUE
-        #encryption = args.embedEncryption if args.embedEncryption else DEFAULT_ENCRYPTION_VALUE
+        threshold = args.embedThreshold
+        zwsp_list = [item.encode('latin1').decode('unicode_escape') for item in args.embedCharacters.replace(" ", "").split(',')] \
+            if args.embedCharacters and args.embedCharacters.replace(" ", "") else ZWSP_LIST
 
         if args.embedPublic:
             public_text = args.embedPublic
@@ -489,7 +469,7 @@ try:
 
             private_text = zwsp_tool.encrypt(private_text, args.embedEncryption, password)
 
-        final_text = zwsp_tool.embed(public_text, private_text, ZWSP_LIST, equalize, threshold, space_mode, unconstrain_mode)
+        final_text = zwsp_tool.embed(public_text, private_text, zwsp_list, equalize, threshold, space_mode, unconstrain_mode)
         print()
 
         if args.output:
@@ -505,10 +485,11 @@ try:
             print(display.delimiter + "\n")
     elif args.command == "extract":
         public_text, private_text, password = "", "", ""
-        #equalize = args.embedEqualize if args.embedEqualize else DEFAULT_EQUALIZATION_VALUE
         threshold = DEFAULT_THRESHOLD_VALUE
         encryption = DEFAULT_ENCRYPTION_VALUE
         base = None
+        zwsp_list = [item.encode('latin1').decode('unicode_escape') for item in args.extractCharacters.replace(" ", "").split(',')] \
+            if args.extractCharacters and args.extractCharacters.replace(" ", "") else ZWSP_LIST
 
         if args.extractPublic:
             public_text = args.extractPublic
@@ -522,7 +503,7 @@ try:
                 password = getpass("\033[32;1mEnter the password to decrypt the hidden text with AES : \033[0m\n")
 
         with alive_bar(bar=DETERMINATED_BAR, enrich_print=False) as bar:
-            private_text = zwsp_tool.extract(public_text, ZWSP_LIST, threshold)
+            private_text = zwsp_tool.extract(public_text, zwsp_list, threshold)
             if args.extractEncryption == "AES":
                 private_text = zwsp_tool.decrypt(private_text, args.extractEncryption, password)
 
@@ -565,7 +546,6 @@ try:
 
         zwsp_tool.bruteforce(public_text, zwsp_list, threshold_range, base, preview_size, regex, encryption, args.output)
         #zwsp_tool.bruteforce(public_text, ZWSP_FULL_LIST, threshold_range, base, DEFAULT_PREVIEW_SIZE, regex, encryption, args.output)
-
     elif args.verbose:
         print("verbosity turned on")
     else:
