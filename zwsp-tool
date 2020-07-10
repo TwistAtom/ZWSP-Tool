@@ -30,6 +30,7 @@ import json
 import argparse
 import itertools
 from getpass import getpass
+from tabulate import tabulate
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Random import get_random_bytes
@@ -305,6 +306,17 @@ def str2bool(value):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
+def display_zwsp_list():
+    print("\033[37;1mThis list is not exhaustive but contains the most discreet zero width characters :\033[0m\n")
+    table = []
+    for char in ZWSP_FULL_LIST:
+        table.append([
+            "\033[37;1m{0}\033[0m".format(char.encode("ascii", "namereplace").decode('utf-8').replace("\\N", "")),
+            "\033[36;1m{0}\033[0m".format(char.encode("ascii", "backslashreplace").decode('utf-8'))
+        ])
+    print(tabulate(table, ("\033[32;1mNAME\033[0m", "\033[32;1mCODE\033[0m"), tablefmt="pretty") + "\n")
+    exit()
+
 display = Display()
 zwsp_tool = ZWSPTool(REPLACEMENT_PATTERN)
 
@@ -332,7 +344,7 @@ detect_parser.add_argument("-r", "--replace", dest="detectReplace", help="Charac
 detect_parser.add_argument("-s", "--search", dest="detectSearch", metavar="<search_character>", help="Search characters.", type=str)
 
 #embed_parser.add_argument("-a", "--auto", dest="embedAuto", metavar="[y/yes/true, n/no/false]", help="-", nargs='?', const=True, default=True, type=str2bool)
-embed_parser.add_argument("-c", "--characters", dest="embedCharacters", metavar="\"<char_1>, <char_2>, ...\"", help="Zero width characters to use to encode the private text.", type=str)
+embed_parser.add_argument("-c", "--characters", dest="embedCharacters", metavar="\"<char_1>, <char_2>, ...\"", help="Zero width characters to use to encode the private text (e.g : \\u200b). Use the 'list' argument to see some possible characters.", type=str)
 embed_parser.add_argument("-e", "--encryption", dest="embedEncryption", metavar="[AES, RSA, PGP]", choices=['AES', 'RSA', 'PGP'], help="Encryption type.")
 embed_mask_group = embed_parser.add_mutually_exclusive_group(required=True)
 embed_mask_group.add_argument("-m", "--mask", dest="embedPrivate", metavar="<hidden_text>", help="Text to hide in another text (public text).", type=str)
@@ -345,7 +357,7 @@ embed_parser.add_argument("-t", "--threshold", dest="embedThreshold", metavar="<
 embed_parser.add_argument("-u", "--unconstrain", dest="embedUnconstrain", metavar="[y/yes/true, n/no/false]", help="If enabled (enabled by default), hides the masking parameters with the private text in the cover text (public text). In order not to need to remember the parameters at the time of extraction.", nargs='?', const=True, default=DEFAULT_UNCONSTRAIN_VALUE, type=str2bool)
 embed_parser.add_argument("-z", "--equalize", dest="embedEqualize", metavar="[y/yes/true, n/no/false]", help="If enabled, evenly distribute the zero width spaces, corresponding to the hidden text (private text), on the set of visible spaces of the cover text (public text).", nargs='?', const=True, default=DEFAULT_EQUALIZATION_VALUE, type=str2bool)
 
-extract_parser.add_argument("-c", "--characters", dest="extractCharacters", metavar="\"<char_1>, <char_2>, ...\"", help="Zero width characters to use to decode the private text.", type=str)
+extract_parser.add_argument("-c", "--characters", dest="extractCharacters", metavar="\"<char_1>, <char_2>, ...\"", help="Zero width characters to use to decode the private text (e.g : \\u200b).", type=str)
 extract_parser.add_argument("-e", "--encryption", dest="extractEncryption", metavar="[AES, RSA, PGP]", choices=['AES', 'RSA', 'PGP'], help="Encryption type.")
 extract_public_group = extract_parser.add_mutually_exclusive_group(required=True)
 extract_public_group.add_argument("-p", "--public", dest="extractPublic", metavar="<public_text>", help="Cover text containing zero width space characters to extract.", type=str)
@@ -445,8 +457,11 @@ try:
         space_mode = args.embedSpace
         unconstrain_mode = args.embedUnconstrain
         threshold = args.embedThreshold
-        zwsp_list = [item.encode('latin1').decode('unicode_escape') for item in args.embedCharacters.replace(" ", "").split(',')] \
-            if args.embedCharacters and args.embedCharacters.replace(" ", "") else ZWSP_LIST
+        if args.embedCharacters == "list":
+            display_zwsp_list()
+        else:
+            zwsp_list = [item.encode('latin1').decode('unicode_escape') for item in args.embedCharacters.replace(" ", "").split(',')] \
+                if args.embedCharacters and args.embedCharacters.replace(" ", "") else ZWSP_LIST
 
         if args.embedPublic:
             public_text = args.embedPublic
@@ -497,8 +512,11 @@ try:
         threshold = DEFAULT_THRESHOLD_VALUE
         encryption = DEFAULT_ENCRYPTION_VALUE
         base = None
-        zwsp_list = [item.encode('latin1').decode('unicode_escape') for item in args.extractCharacters.replace(" ", "").split(',')] \
-            if args.extractCharacters and args.extractCharacters.replace(" ", "") else ZWSP_LIST
+        if args.extractCharacters == "list":
+            display_zwsp_list()
+        else:
+            zwsp_list = [item.encode('latin1').decode('unicode_escape') for item in args.extractCharacters.replace(" ", "").split(',')] \
+                if args.extractCharacters and args.extractCharacters.replace(" ", "") else ZWSP_LIST
 
         if args.extractPublic:
             public_text = args.extractPublic
