@@ -107,6 +107,7 @@ fi
 {
 python3 -m pip install pycryptodome
 python3 -m pip install alive-progress
+python3 -m pip install tabulate
 } &> /dev/null
 
 {
