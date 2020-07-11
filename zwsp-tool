@@ -317,6 +317,15 @@ def display_zwsp_list():
     print(tabulate(table, ("\033[32;1mNAME\033[0m", "\033[32;1mCODE\033[0m"), tablefmt="pretty") + "\n")
     exit()
 
+def format_zwsp_list(zwsp_list):
+    try:
+        zwsp_list = [item.encode('latin1').decode('unicode_escape') for item in zwsp_list.replace(" ", "").split(',')]
+        return [char for char in zwsp_list if(not(char.isspace() or len(char) < 1 or zwsp_list.count(char) > 1) and re.match(r"^\\u.{3,4}$",
+        char.encode("ascii", "backslashreplace").decode('utf-8'), re.IGNORECASE))]
+    except UnicodeDecodeError:
+        print(display.error + "\033[37;1mSome unicode characters present in the list are invalid !\033[0m\n")
+        exit()
+
 display = Display()
 zwsp_tool = ZWSPTool(REPLACEMENT_PATTERN)
 
@@ -365,7 +374,7 @@ extract_public_group.add_argument("-P", "--pfile", dest="extractPublicFile", met
 
 
 bruteforce_parser.add_argument("-b", "--base", dest="bruteforceBase", metavar="<base>", help="Manually choose a fixed base (e.g : 2 for binary) to force the text. Please note, the base chosen cannot exceed the number of zero width spaces available in the lists.", type=int)
-bruteforce_parser.add_argument("-c", "--characters", dest="bruteforceCharacters", metavar="[<char_1>, <char_2>]", help="Zero width characters to use to decode the private text.", default=ZWSP_FULL_LIST, type=str)
+bruteforce_parser.add_argument("-c", "--characters", dest="bruteforceCharacters", metavar="\"<char_1>, <char_2>, ...\"", help="Zero width characters to use to decode the private text (e.g : \\u200b).", type=str)
 bruteforce_parser.add_argument("-d", "--demo", dest="bruteforceDemo", metavar="<preview_size>", help="Size of the preview in number of characters. This allows you to quickly view and analyze bruteforce attempts.", default=DEFAULT_PREVIEW_SIZE, type=int)
 bruteforce_parser.add_argument("-e", "--encryption", dest="bruteforceEncryption", metavar="[AES, RSA, PGP]", choices=['AES', 'RSA', 'PGP'], help="Encryption type.", default=DEFAULT_ENCRYPTION_VALUE)
 bruteforce_public_group = bruteforce_parser.add_mutually_exclusive_group(required=True)
@@ -457,11 +466,17 @@ try:
         space_mode = args.embedSpace
         unconstrain_mode = args.embedUnconstrain
         threshold = args.embedThreshold
-        if args.embedCharacters == "list":
-            display_zwsp_list()
-        else:
-            zwsp_list = [item.encode('latin1').decode('unicode_escape') for item in args.embedCharacters.replace(" ", "").split(',')] \
-                if args.embedCharacters and args.embedCharacters.replace(" ", "") else ZWSP_LIST
+        zwsp_list = ZWSP_LIST
+ 
+        if args.embedCharacters:
+            if(args.embedCharacters == "list"):
+                display_zwsp_list()
+            else:
+                zwsp_list = format_zwsp_list(args.embedCharacters)
+
+        if(len(zwsp_list) < 2):
+            print(display.error + "\033[37;1mThe number of different zero width characters in the list cannot be less than two !\033[0m\n")
+            exit()
 
         if args.embedPublic:
             public_text = args.embedPublic
@@ -512,11 +527,17 @@ try:
         threshold = DEFAULT_THRESHOLD_VALUE
         encryption = DEFAULT_ENCRYPTION_VALUE
         base = None
-        if args.extractCharacters == "list":
-            display_zwsp_list()
-        else:
-            zwsp_list = [item.encode('latin1').decode('unicode_escape') for item in args.extractCharacters.replace(" ", "").split(',')] \
-                if args.extractCharacters and args.extractCharacters.replace(" ", "") else ZWSP_LIST
+        zwsp_list = ZWSP_LIST
+ 
+        if args.extractCharacters:
+            if(args.extractCharacters == "list"):
+                display_zwsp_list()
+            else:
+                zwsp_list = format_zwsp_list(args.extractCharacters)
+                
+        if(len(zwsp_list) < 2):
+            print(display.error + "\033[37;1mThe number of different zero width characters in the list cannot be less than two !\033[0m\n")
+            exit()
 
         if args.extractPublic:
             public_text = args.extractPublic
@@ -551,12 +572,20 @@ try:
         searched_text = args.bruteforceSearch
         preview_size = args.bruteforceDemo
         threshold_range = args.bruteforceThreshold
-        zwsp_list = args.bruteforceCharacters
         encryption = args.bruteforceEncryption
         base = args.bruteforceBase
         regex = None
-
-        print(clever_mode)
+        zwsp_list = ZWSP_LIST
+ 
+        if args.bruteforceCharacters:
+            if(args.bruteforceCharacters == "list"):
+                display_zwsp_list()
+            else:
+                zwsp_list = format_zwsp_list(args.bruteforceCharacters)
+                
+        if(len(zwsp_list) < 2):
+            print(display.error + "\033[37;1mThe number of different zero width characters in the list cannot be less than two !\033[0m\n")
+            exit()
 
         if args.bruteforcePublic:
             public_text = args.bruteforcePublic
