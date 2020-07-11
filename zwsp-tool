@@ -46,7 +46,7 @@ DEFAULT_EQUALIZATION_VALUE = True
 DEFAULT_THRESHOLD_VALUE = 35
 DEFAULT_THRESHOLD_RANGE_VALUE = (10, 38)
 DEFAULT_ENCRYPTION_VALUE = None
-DEFAULT_WILY_MODE_VALUE = False
+DEFAULT_WILY_MODE_VALUE = True
 
 ZERO_WIDTH_SPACE = '\u200b'
 ZERO_WIDTH_NON_JOINER = '\u200c'
@@ -390,7 +390,7 @@ bruteforce_public_group.add_argument("-p", "--public", dest="bruteforcePublic", 
 bruteforce_public_group.add_argument("-P", "--pfile", dest="bruteforcePublicFile", metavar="<path_to_file>", help="Use text cover from a file, containing zero width space characters for extraction.", type=str)
 bruteforce_parser.add_argument("-s", "--search", dest="bruteforceSearch", metavar="<search_term>", help="Specific terms to search for validate a bruteforce attempt.", type=str)
 bruteforce_parser.add_argument("-t", "--threshold", dest="bruteforceThreshold", metavar="[<start_range>, <end_range>]", help="Size of an encoding string, the larger the number, the more it is possible to encode different characters. Select the threshold range to test.", default=DEFAULT_THRESHOLD_RANGE_VALUE, type=int)
-bruteforce_parser.add_argument("-w", "--wily", dest="bruteforceWily", help="Intelligent algorithm that only selects attempts that can be interesting to study. Please note that this is largely based on the composition of the latin alphabet.", default=DEFAULT_WILY_MODE_VALUE, action="store_true")
+bruteforce_parser.add_argument("-w", "--wily", dest="bruteforceWily", metavar="[y/yes/true, n/no/false]", help="Intelligent algorithm that only selects attempts that can be interesting to study. Please note that this is largely based on the composition of the latin alphabet.", nargs='?', const=True, default=DEFAULT_WILY_MODE_VALUE, type=str2bool)
 
 parser.add_argument("-o", "--output", dest="output", metavar="<output_file>", help="File to store the results.", type=str)
 verbose_group = parser.add_mutually_exclusive_group()
