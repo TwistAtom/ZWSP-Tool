@@ -335,7 +335,6 @@ def format_zwsp_list(zwsp_list):
         exit()
 
 display = Display()
-zwsp_tool = ZWSPTool(REPLACEMENT_PATTERN)
 
 parser = argparse.ArgumentParser(prog="zwsp-tool", description=HELP_DESCRIPTION)
 
@@ -380,7 +379,6 @@ extract_public_group = extract_parser.add_mutually_exclusive_group(required=True
 extract_public_group.add_argument("-p", "--public", dest="extractPublic", metavar="<public_text>", help="Cover text containing zero width space characters to extract.", type=str)
 extract_public_group.add_argument("-P", "--pfile", dest="extractPublicFile", metavar="<path_to_file>", help="Use text cover from a file, containing zero width space characters for extraction.", type=str)
 
-
 bruteforce_parser.add_argument("-b", "--base", dest="bruteforceBase", metavar="<base>", help="Manually choose a fixed base (e.g : 2 for binary) to force the text. Please note, the base chosen cannot exceed the number of zero width spaces available in the lists.", type=int)
 bruteforce_parser.add_argument("-c", "--characters", dest="bruteforceCharacters", metavar="\"<char_1>, <char_2>, ...\"", help="Zero width characters to use to decode the private text (e.g : \\u200b).", type=str)
 bruteforce_parser.add_argument("-d", "--demo", dest="bruteforceDemo", metavar="<preview_size>", help="Size of the preview in number of characters. This allows you to quickly view and analyze bruteforce attempts.", default=DEFAULT_PREVIEW_SIZE, type=int)
@@ -399,230 +397,236 @@ verbose_group.add_argument("-v", "--verbose", dest="verbose", help="Increase out
 
 args = parser.parse_args()
 
-try:
-    if args.command == "clean": 
-        initial_text, analyzed_text = "", ""
-        if args.cleanPublic:
-            initial_text = args.cleanPublic.encode('ascii', 'ignore').decode('unicode_escape')
-        elif args.cleanPublicFile:
-            file = open(args.cleanPublicFile, "r")
-            initial_text = file.read()
-            file.close()
+def main():
+    zwsp_tool = ZWSPTool(REPLACEMENT_PATTERN)
 
-        with alive_bar(len(initial_text), bar=DETERMINATED_BAR) as bar:
-            for i in range(len(initial_text)-1):
-                bar()
-            cleanedText = initial_text.encode('ascii', 'ignore').decode('unicode_escape')
-            bar()
-        print()
+    try:
+        if args.command == "clean": 
+            initial_text, analyzed_text = "", ""
+            if args.cleanPublic:
+                initial_text = args.cleanPublic.encode('ascii', 'ignore').decode('unicode_escape')
+            elif args.cleanPublicFile:
+                file = open(args.cleanPublicFile, "r")
+                initial_text = file.read()
+                file.close()
 
-        if args.output:
-            file = open(args.output, "a")
-            file.write("\n" + cleanedText)
-            file.close()
-            print(display.success + "\033[37;1mThe text has been cleaned up\033[0m")
-            print(display.info + "\033[37;1mText saved in '\033[36;1m" + args.output + "\033[0m'")
-        else:
-            print(display.success + "\033[37;1mThe text has been cleaned up\033[0m")
-            print(display.delimiter)
-            print(cleanedText)
-            print(display.delimiter + "\n")
-
-    elif args.command == "detect":
-        initial_text, analyzed_text = "", ""
-        if args.detectPublic:
-            initial_text = args.detectPublic
-        elif args.detectPublicFile:
-            file = open(args.detectPublicFile, "r")
-            initial_text = file.read()
-            file.close()
-            
-        if args.detectReplace == "escaped" or args.detectReplace == "named":
-            with alive_bar(len(initial_text)) as bar:
-                for i in range(len(initial_text)-1):
-                    bar()
-                if args.detectReplace == "escaped":
-                    analyzed_text = initial_text.encode("ascii", "backslashreplace")
-                else:
-                    analyzed_text = initial_text.encode("ascii", "namereplace")
-                bar()
-        else:
             with alive_bar(len(initial_text), bar=DETERMINATED_BAR) as bar:
                 for i in range(len(initial_text)-1):
                     bar()
-                if args.output:
-                    analyzed_text = re.sub('&#.{4,5};', '•', initial_text.encode("ascii", "xmlcharrefreplace").decode('utf-8'))
-                else:
-                    analyzed_text = re.sub('&#.{4,5};', '\033[31;1m•\033[0m', initial_text.encode("ascii", "xmlcharrefreplace").decode('utf-8'))
+                cleanedText = initial_text.encode('ascii', 'ignore').decode('unicode_escape')
                 bar()
-        print()
-
-        if args.output:
-            file = open(args.output, "a")
-            file.write("\n" + analyzed_text)
-            file.close()
-            print(display.success + "\033[37;1mThe text has been correctly analyzed\033[0m")
-            print(display.info + "\033[37;1mAnalyzed text saved in '\033[36;1m" + args.output + "\033[0m'")
-        else:
-            print(display.success + "\033[37;1mThe text has been correctly analyzed\033[0m")
-            print(display.delimiter)
-            print(analyzed_text)
-            print(display.delimiter + "\n")
-    elif args.command == "embed":
-        public_text, private_text, final_text = "", "", ""
-        equalize = args.embedEqualize
-        space_mode = args.embedSpace
-        unconstrain_mode = args.embedUnconstrain
-        threshold = args.embedThreshold
-        zwsp_list = ZWSP_LIST
- 
-        if args.embedCharacters:
-            if(args.embedCharacters == "list"):
-                display_zwsp_list()
-            else:
-                zwsp_list = format_zwsp_list(args.embedCharacters)
-
-        if(len(zwsp_list) < 2):
-            print(display.error + "\033[37;1mThe number of different zero width characters in the list cannot be less than two !\033[0m\n")
-            exit()
-
-        if args.embedPublic:
-            public_text = args.embedPublic
-        elif args.embedPublicFile:
-            file = open(args.embedPublicFile, "r")
-            public_text = file.read()
-            file.close()
-
-        if args.embedPrivate:
-            private_text = args.embedPrivate
-        elif args.embedPrivateFile:
-            file = open(args.embedPrivateFile, "r")
-            private_text = file.read()
-            file.close()
-
-        if args.embedEncryption:
-            password = ""
-            if args.embedEncryption == "AES":
-                valid = False
-                while(not valid):
-                    password = getpass("\033[32;1mEnter the password to encrypt the hidden text with AES : \033[0m\n")
-                    password_verif = getpass("\n\033[32;1mConfirm password : \033[0m\n")
-                    if(password == password_verif):
-                        valid = True
-                    else:
-                        print(display.error + "\033[37;1mPasswords do not match !\033[0m\n\n")
-
-            private_text = zwsp_tool.encrypt(private_text, args.embedEncryption, password)
-
-        print("\033[37;1mENCRYPTION : \033[36m{0}\033[0m".format(args.embedEncryption))
-
-        final_text = zwsp_tool.embed(public_text, private_text, zwsp_list, equalize, threshold, space_mode, unconstrain_mode)
-        print()
-
-        if args.output:
-            file = open(args.output, "a")
-            file.write("\n" + final_text)
-            file.close()
-            print(display.success + "\033[37;1mThe text has been correctly hidden\033[0m")
-            print(display.info + "\033[37;1mText saved in '\033[36;1m" + args.output + "\033[0m'")
-        else:
-            print(display.success + "\033[37;1mThe text has been correctly hidden\033[0m")
-            print(display.delimiter)
-            print(final_text)
-            print(display.delimiter + "\n")
-    elif args.command == "extract":
-        public_text, private_text, password = "", "", ""
-        threshold = DEFAULT_THRESHOLD_VALUE
-        encryption = DEFAULT_ENCRYPTION_VALUE
-        base = None
-        zwsp_list = ZWSP_LIST
- 
-        if args.extractCharacters:
-            if(args.extractCharacters == "list"):
-                display_zwsp_list()
-            else:
-                zwsp_list = format_zwsp_list(args.extractCharacters)
-                
-        if(len(zwsp_list) < 2):
-            print(display.error + "\033[37;1mThe number of different zero width characters in the list cannot be less than two !\033[0m\n")
-            exit()
-
-        if args.extractPublic:
-            public_text = args.extractPublic
-        elif args.extractPublicFile:
-            file = open(args.extractPublicFile, "r")
-            public_text = file.read()
-            file.close()
-
-        if args.extractEncryption:
-            if args.extractEncryption == "AES":
-                password = getpass("\033[32;1mEnter the password to decrypt the hidden text with AES : \033[0m\n")
-
-        with alive_bar(bar=DETERMINATED_BAR, enrich_print=False) as bar:
-            if(zwsp_tool.verification(public_text, zwsp_list)):
-                private_text = zwsp_tool.extract(public_text, zwsp_list, threshold)
-            else:
-                print(display.info + "\033[37;1mThe cover text doesn't contain any zero width characters present in the list.\033[0m\n")
-                exit()
-            if args.extractEncryption == "AES":
-                private_text = zwsp_tool.decrypt(private_text, args.extractEncryption, password)
+            print()
 
             if args.output:
                 file = open(args.output, "a")
-                file.write(private_text)
+                file.write("\n" + cleanedText)
                 file.close()
-                print(display.success + "\033[37;1mText has been correctly extracted\033[0m")
+                print(display.success + "\033[37;1mThe text has been cleaned up\033[0m")
                 print(display.info + "\033[37;1mText saved in '\033[36;1m" + args.output + "\033[0m'")
             else:
-                print(display.success + "\033[37;1mText has been correctly extracted\033[0m")
+                print(display.success + "\033[37;1mThe text has been cleaned up\033[0m")
                 print(display.delimiter)
-                print(private_text)
+                print(cleanedText)
                 print(display.delimiter + "\n")
-    elif args.command == "bruteforce":
-        public_text, password = "", ""
-        clever_mode = args.bruteforceWily
-        searched_text = args.bruteforceSearch
-        preview_size = args.bruteforceDemo
-        threshold_range = args.bruteforceThreshold
-        encryption = args.bruteforceEncryption
-        base = args.bruteforceBase
-        regex = None
-        zwsp_list = ZWSP_LIST
- 
-        if args.bruteforceCharacters:
-            if(args.bruteforceCharacters == "list"):
-                display_zwsp_list()
-            else:
-                zwsp_list = format_zwsp_list(args.bruteforceCharacters)
+
+        elif args.command == "detect":
+            initial_text, analyzed_text = "", ""
+            if args.detectPublic:
+                initial_text = args.detectPublic
+            elif args.detectPublicFile:
+                file = open(args.detectPublicFile, "r")
+                initial_text = file.read()
+                file.close()
                 
-        if(len(zwsp_list) < 2):
-            print(display.error + "\033[37;1mThe number of different zero width characters in the list cannot be less than two !\033[0m\n")
-            exit()
+            if args.detectReplace == "escaped" or args.detectReplace == "named":
+                with alive_bar(len(initial_text)) as bar:
+                    for i in range(len(initial_text)-1):
+                        bar()
+                    if args.detectReplace == "escaped":
+                        analyzed_text = initial_text.encode("ascii", "backslashreplace")
+                    else:
+                        analyzed_text = initial_text.encode("ascii", "namereplace")
+                    bar()
+            else:
+                with alive_bar(len(initial_text), bar=DETERMINATED_BAR) as bar:
+                    for i in range(len(initial_text)-1):
+                        bar()
+                    if args.output:
+                        analyzed_text = re.sub('&#.{4,5};', '•', initial_text.encode("ascii", "xmlcharrefreplace").decode('utf-8'))
+                    else:
+                        analyzed_text = re.sub('&#.{4,5};', '\033[31;1m•\033[0m', initial_text.encode("ascii", "xmlcharrefreplace").decode('utf-8'))
+                    bar()
+            print()
 
-        if(base != None and (base < 2 or base > 36)):
-            print(display.error + "\033[37;1mBase must be greater or equal to 2 and strictly less than 37 !\033[0m\n")
-            exit()
+            if args.output:
+                file = open(args.output, "a")
+                file.write("\n" + analyzed_text)
+                file.close()
+                print(display.success + "\033[37;1mThe text has been correctly analyzed\033[0m")
+                print(display.info + "\033[37;1mAnalyzed text saved in '\033[36;1m" + args.output + "\033[0m'")
+            else:
+                print(display.success + "\033[37;1mThe text has been correctly analyzed\033[0m")
+                print(display.delimiter)
+                print(analyzed_text)
+                print(display.delimiter + "\n")
+        elif args.command == "embed":
+            public_text, private_text, final_text = "", "", ""
+            equalize = args.embedEqualize
+            space_mode = args.embedSpace
+            unconstrain_mode = args.embedUnconstrain
+            threshold = args.embedThreshold
+            zwsp_list = ZWSP_LIST
+    
+            if args.embedCharacters:
+                if(args.embedCharacters == "list"):
+                    display_zwsp_list()
+                else:
+                    zwsp_list = format_zwsp_list(args.embedCharacters)
 
-        if args.bruteforcePublic:
-            public_text = args.bruteforcePublic
-        elif args.bruteforcePublicFile:
-            file = open(args.bruteforcePublicFile, "r")
-            public_text = file.read()
-            file.close()
+            if(len(zwsp_list) < 2):
+                print(display.error + "\033[37;1mThe number of different zero width characters in the list cannot be less than two !\033[0m\n")
+                exit()
 
-        if clever_mode:
-            regex = r'[a-zA-Z]{3}'
-            #r'[a-zA-Z\d]'
-        elif searched_text:
-            regex = ".*" + searched_text + ".*"
+            if args.embedPublic:
+                public_text = args.embedPublic
+            elif args.embedPublicFile:
+                file = open(args.embedPublicFile, "r")
+                public_text = file.read()
+                file.close()
 
-        if(zwsp_tool.verification(public_text, zwsp_list)):
-            zwsp_tool.bruteforce(public_text, zwsp_list, threshold_range, base, preview_size, regex, encryption, args.output)
+            if args.embedPrivate:
+                private_text = args.embedPrivate
+            elif args.embedPrivateFile:
+                file = open(args.embedPrivateFile, "r")
+                private_text = file.read()
+                file.close()
+
+            if args.embedEncryption:
+                password = ""
+                if args.embedEncryption == "AES":
+                    valid = False
+                    while(not valid):
+                        password = getpass("\033[32;1mEnter the password to encrypt the hidden text with AES : \033[0m\n")
+                        password_verif = getpass("\n\033[32;1mConfirm password : \033[0m\n")
+                        if(password == password_verif):
+                            valid = True
+                        else:
+                            print(display.error + "\033[37;1mPasswords do not match !\033[0m\n\n")
+
+                private_text = zwsp_tool.encrypt(private_text, args.embedEncryption, password)
+
+            print("\033[37;1mENCRYPTION : \033[36m{0}\033[0m".format(args.embedEncryption))
+
+            final_text = zwsp_tool.embed(public_text, private_text, zwsp_list, equalize, threshold, space_mode, unconstrain_mode)
+            print()
+
+            if args.output:
+                file = open(args.output, "a")
+                file.write("\n" + final_text)
+                file.close()
+                print(display.success + "\033[37;1mThe text has been correctly hidden\033[0m")
+                print(display.info + "\033[37;1mText saved in '\033[36;1m" + args.output + "\033[0m'")
+            else:
+                print(display.success + "\033[37;1mThe text has been correctly hidden\033[0m")
+                print(display.delimiter)
+                print(final_text)
+                print(display.delimiter + "\n")
+        elif args.command == "extract":
+            public_text, private_text, password = "", "", ""
+            threshold = DEFAULT_THRESHOLD_VALUE
+            encryption = DEFAULT_ENCRYPTION_VALUE
+            base = None
+            zwsp_list = ZWSP_LIST
+    
+            if args.extractCharacters:
+                if(args.extractCharacters == "list"):
+                    display_zwsp_list()
+                else:
+                    zwsp_list = format_zwsp_list(args.extractCharacters)
+                    
+            if(len(zwsp_list) < 2):
+                print(display.error + "\033[37;1mThe number of different zero width characters in the list cannot be less than two !\033[0m\n")
+                exit()
+
+            if args.extractPublic:
+                public_text = args.extractPublic
+            elif args.extractPublicFile:
+                file = open(args.extractPublicFile, "r")
+                public_text = file.read()
+                file.close()
+
+            if args.extractEncryption:
+                if args.extractEncryption == "AES":
+                    password = getpass("\033[32;1mEnter the password to decrypt the hidden text with AES : \033[0m\n")
+
+            with alive_bar(bar=DETERMINATED_BAR, enrich_print=False) as bar:
+                if(zwsp_tool.verification(public_text, zwsp_list)):
+                    private_text = zwsp_tool.extract(public_text, zwsp_list, threshold)
+                else:
+                    print(display.info + "\033[37;1mThe cover text doesn't contain any zero width characters present in the list.\033[0m\n")
+                    exit()
+                if args.extractEncryption == "AES":
+                    private_text = zwsp_tool.decrypt(private_text, args.extractEncryption, password)
+
+                if args.output:
+                    file = open(args.output, "a")
+                    file.write(private_text)
+                    file.close()
+                    print(display.success + "\033[37;1mText has been correctly extracted\033[0m")
+                    print(display.info + "\033[37;1mText saved in '\033[36;1m" + args.output + "\033[0m'")
+                else:
+                    print(display.success + "\033[37;1mText has been correctly extracted\033[0m")
+                    print(display.delimiter)
+                    print(private_text)
+                    print(display.delimiter + "\n")
+        elif args.command == "bruteforce":
+            public_text, password = "", ""
+            clever_mode = args.bruteforceWily
+            searched_text = args.bruteforceSearch
+            preview_size = args.bruteforceDemo
+            threshold_range = args.bruteforceThreshold
+            encryption = args.bruteforceEncryption
+            base = args.bruteforceBase
+            regex = None
+            zwsp_list = ZWSP_LIST
+    
+            if args.bruteforceCharacters:
+                if(args.bruteforceCharacters == "list"):
+                    display_zwsp_list()
+                else:
+                    zwsp_list = format_zwsp_list(args.bruteforceCharacters)
+                    
+            if(len(zwsp_list) < 2):
+                print(display.error + "\033[37;1mThe number of different zero width characters in the list cannot be less than two !\033[0m\n")
+                exit()
+
+            if(base != None and (base < 2 or base > 36)):
+                print(display.error + "\033[37;1mBase must be greater or equal to 2 and strictly less than 37 !\033[0m\n")
+                exit()
+
+            if args.bruteforcePublic:
+                public_text = args.bruteforcePublic
+            elif args.bruteforcePublicFile:
+                file = open(args.bruteforcePublicFile, "r")
+                public_text = file.read()
+                file.close()
+
+            if clever_mode:
+                regex = r'[a-zA-Z]{3}'
+                #r'[a-zA-Z\d]'
+            elif searched_text:
+                regex = ".*" + searched_text + ".*"
+
+            if(zwsp_tool.verification(public_text, zwsp_list)):
+                zwsp_tool.bruteforce(public_text, zwsp_list, threshold_range, base, preview_size, regex, encryption, args.output)
+            else:
+                print(display.info + "\033[37;1mThe cover text doesn't contain any zero width characters present in the list.\033[0m\n")
+        elif args.verbose:
+            print("Verbosity turned on")
         else:
-            print(display.info + "\033[37;1mThe cover text doesn't contain any zero width characters present in the list.\033[0m\n")
-    elif args.verbose:
-        print("Verbosity turned on")
-    else:
-        parser.print_help()
-except FileNotFoundError:
-    print(display.error + "\033[37;1mThe file was not found !\033[0m\n")
+            parser.print_help()
+    except FileNotFoundError:
+        print(display.error + "\033[37;1mThe file was not found !\033[0m\n")
+
+if __name__=='__main__':
+    main()
