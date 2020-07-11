@@ -106,6 +106,14 @@ class ZWSPTool:
         return int(threshold/nb_possibility)
 
 
+    def verification(self, public_text, zwsp_list):
+        valid = False
+        for char in zwsp_list:
+            if char in public_text:
+                valid = True
+        return valid
+
+
     def embed(self, public_text, private_text, zwsp_list, equalize, threshold, space_mode, unconstrain_mode):
         hidden_codes, final_text, padding = '', '', self.get_padding(len(zwsp_list), threshold)
         position, block_size, nb_spaces = 0, 1, public_text.count(' ')
@@ -198,7 +206,7 @@ class ZWSPTool:
             current_encoded_char += char
             if((index + 1) % padding == 0 and index > 0):
                 private_text += chr(int(current_encoded_char, len(zwsp_list)))
-                current_encoded_char = ''   
+                current_encoded_char = ''
         return private_text
 
 
@@ -320,8 +328,8 @@ def display_zwsp_list():
 def format_zwsp_list(zwsp_list):
     try:
         zwsp_list = [item.encode('latin1').decode('unicode_escape') for item in zwsp_list.replace(" ", "").split(',')]
-        return [char for char in zwsp_list if(not(char.isspace() or len(char) < 1 or zwsp_list.count(char) > 1) and re.match(r"^\\u.{3,4}$",
-        char.encode("ascii", "backslashreplace").decode('utf-8'), re.IGNORECASE))]
+        return list(set([char for char in zwsp_list if(not(char.isspace() or len(char) < 1) and re.match(r"^\\u.{3,4}$",
+        char.encode("ascii", "backslashreplace").decode('utf-8'), re.IGNORECASE))]))
     except UnicodeDecodeError:
         print(display.error + "\033[37;1mSome unicode characters present in the list are invalid !\033[0m\n")
         exit()
@@ -551,7 +559,11 @@ try:
                 password = getpass("\033[32;1mEnter the password to decrypt the hidden text with AES : \033[0m\n")
 
         with alive_bar(bar=DETERMINATED_BAR, enrich_print=False) as bar:
-            private_text = zwsp_tool.extract(public_text, zwsp_list, threshold)
+            if(zwsp_tool.verification(public_text, zwsp_list)):
+                private_text = zwsp_tool.extract(public_text, zwsp_list, threshold)
+            else:
+                print(display.info + "\033[37;1mThe cover text doesn't contain any zero width characters present in the list.\033[0m\n")
+                exit()
             if args.extractEncryption == "AES":
                 private_text = zwsp_tool.decrypt(private_text, args.extractEncryption, password)
 
@@ -587,6 +599,10 @@ try:
             print(display.error + "\033[37;1mThe number of different zero width characters in the list cannot be less than two !\033[0m\n")
             exit()
 
+        if(base != None and (base < 2 or base > 36)):
+            print(display.error + "\033[37;1mBase must be greater or equal to 2 and strictly less than 37 !\033[0m\n")
+            exit()
+
         if args.bruteforcePublic:
             public_text = args.bruteforcePublic
         elif args.bruteforcePublicFile:
@@ -600,10 +616,12 @@ try:
         elif searched_text:
             regex = ".*" + searched_text + ".*"
 
-        zwsp_tool.bruteforce(public_text, zwsp_list, threshold_range, base, preview_size, regex, encryption, args.output)
-        #zwsp_tool.bruteforce(public_text, ZWSP_FULL_LIST, threshold_range, base, DEFAULT_PREVIEW_SIZE, regex, encryption, args.output)
+        if(zwsp_tool.verification(public_text, zwsp_list)):
+            zwsp_tool.bruteforce(public_text, zwsp_list, threshold_range, base, preview_size, regex, encryption, args.output)
+        else:
+            print(display.info + "\033[37;1mThe cover text doesn't contain any zero width characters present in the list.\033[0m\n")
     elif args.verbose:
-        print("verbosity turned on")
+        print("Verbosity turned on")
     else:
         parser.print_help()
 except FileNotFoundError:
