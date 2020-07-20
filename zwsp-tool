@@ -126,10 +126,17 @@ class ZWSPTool:
             private_text = ''.join((settings, private_text))
 
         nb_operations = len(private_text)
-        if(space_mode and nb_spaces > 0):
-            nb_operations += nb_spaces*100
+        code_length = len(private_text)*padding
+        if(space_mode and nb_spaces > 0):    
+            if(code_length >= nb_spaces):
+                nb_operations += nb_spaces*100
+            else:
+                nb_operations += code_length*100
         else:
-            nb_operations += len(public_text)*100
+            if(code_length >= len(public_text)):
+                nb_operations += len(public_text)*100
+            else:
+                nb_operations += code_length*100
 
         with alive_bar(nb_operations, bar=DETERMINATED_BAR, calibrate=1, enrich_print=False) as bar:
             print("\033[37;1mEQUALIZE MODE : \033[36m{0}\033[0m".format(equalize))
@@ -150,7 +157,7 @@ class ZWSPTool:
                 elif(not equalize):
                     block_size = len(hidden_codes)
                 else:
-                    return
+                    block_size = 1
                 
                 print("\033[37;1mBLOCK SIZE : \033[36m{0}\033[0m".format(block_size))
                 for i in range(len(public_text)):
@@ -164,6 +171,8 @@ class ZWSPTool:
                         elif(len(hidden_codes) - position > 0):
                             hidden_text = hidden_codes[position:]
                         else:
+                            print("!!!!! ENTER2 !!!!")
+                            final_text += public_text[i:]
                             break
                         final_text += public_text[i] + hidden_text
                         position += block_size
@@ -177,7 +186,7 @@ class ZWSPTool:
                 elif(not equalize):
                     block_size = len(hidden_codes)
                 else:
-                    return
+                    block_size = 1
 
                 for i in range(nb_spaces):
                     replacement_text = self.replacement_patten
@@ -419,7 +428,7 @@ def main():
 
             if args.output:
                 file = open(args.output, "a")
-                file.write("\n" + cleanedText)
+                file.write(cleanedText)
                 file.close()
                 print(display.success + "\033[37;1mThe text has been cleaned up\033[0m")
                 print(display.info + "\033[37;1mText saved in '\033[36;1m" + args.output + "\033[0m'")
@@ -460,7 +469,7 @@ def main():
 
             if args.output:
                 file = open(args.output, "a")
-                file.write("\n" + analyzed_text)
+                file.write(analyzed_text)
                 file.close()
                 print(display.success + "\033[37;1mThe text has been correctly analyzed\033[0m")
                 print(display.info + "\033[37;1mAnalyzed text saved in '\033[36;1m" + args.output + "\033[0m'")
@@ -519,10 +528,10 @@ def main():
 
             final_text = zwsp_tool.embed(public_text, private_text, zwsp_list, equalize, threshold, space_mode, unconstrain_mode)
             print()
-
+            
             if args.output:
                 file = open(args.output, "a")
-                file.write("\n" + final_text)
+                file.write(str(final_text))
                 file.close()
                 print(display.success + "\033[37;1mThe text has been correctly hidden\033[0m")
                 print(display.info + "\033[37;1mText saved in '\033[36;1m" + args.output + "\033[0m'")
