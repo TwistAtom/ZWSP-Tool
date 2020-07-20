@@ -145,11 +145,12 @@ class ZWSPTool:
             print("\033[37;1mTHRESHOLD : \033[36m{0}\033[0m".format(threshold))
             print("\033[37;1mZWSP LIST : \033[36m{0}\033[0m".format(zwsp_list))
 
+            bar.text("Encoding")
             for char in private_text:
                 code = str(self.to_base(ord(char), len(zwsp_list))).zfill(padding)
                 for code_char in code:
                     hidden_codes += zwsp_list[int(code_char)]
-                bar("Encoding")
+                bar()
 
             if(nb_spaces <= 0 or not space_mode):
                 if(equalize and (len(public_text) - 1) <= len(hidden_codes)):
@@ -160,6 +161,8 @@ class ZWSPTool:
                     block_size = 1
                 
                 print("\033[37;1mBLOCK SIZE : \033[36m{0}\033[0m".format(block_size))
+                bar.text("Masking")
+
                 for i in range(len(public_text)):
                     hidden_text = ''
 
@@ -171,12 +174,11 @@ class ZWSPTool:
                         elif(len(hidden_codes) - position > 0):
                             hidden_text = hidden_codes[position:]
                         else:
-                            print("!!!!! ENTER2 !!!!")
                             final_text += public_text[i:]
                             break
                         final_text += public_text[i] + hidden_text
                         position += block_size
-                    bar("Masking", incr=100)
+                    bar(incr=100)
                 print()  
                 return final_text
             else:
@@ -187,6 +189,9 @@ class ZWSPTool:
                     block_size = len(hidden_codes)
                 else:
                     block_size = 1
+
+                print("\033[37;1mBLOCK SIZE : \033[36m{0}\033[0m".format(block_size))
+                bar.text("Masking")
 
                 for i in range(nb_spaces):
                     replacement_text = self.replacement_patten
@@ -199,7 +204,7 @@ class ZWSPTool:
                     
                     final_text = final_text.replace(' ', replacement_text, 1)
                     position += block_size
-                    bar("Masking", incr=100)
+                    bar(incr=100)
                 print() 
                 return final_text.replace(self.replacement_patten, ' ')
 
