@@ -234,10 +234,11 @@ class ZWSPTool:
         nb_operations += len(zwsp_groups)
 
         nb_operations *= (threshold_range[1] - threshold_range[0])
-        print(len(zwsp_groups))
-        print(searched_text)
+        print("\033[37;1mNUMBER OF ARRANGEMENT : \033[36m{0}\033[0m".format(len(zwsp_groups)))
+
         with alive_bar(nb_operations, bar=DETERMINATED_BAR, enrich_print=False) as bar:
             if searched_text:
+                print("\033[37;1mRESEARCH : \033[36m{0}\033[0m".format(searched_text))
                 if output:
                     file = open(output, "a")
                     for i in range(len(zwsp_groups)):
@@ -248,18 +249,23 @@ class ZWSPTool:
                                 cpt += 1 
                             bar()
                     file.close()
-                    print(display.info + "\033[37;1mBruteforce matches have been saved in '\033[36;1m" + output + "\033[0m'")
+                    if(cpt <= 1):
+                        print("\n" + display.error + "\033[37;1mNo match found !\033[0m\n")
+                    else:
+                        print(display.info + "\033[37;1mBruteforce matches have been saved in '\033[36;1m" + output + "\033[0m'")
                 else:
                     for i in range(len(zwsp_groups)):
                         for threshold in range(threshold_range[0], threshold_range[1]):
                             result = self.extract(public_text, zwsp_groups[i], threshold)
                             if(re.search(searched_text, result, re.IGNORECASE)):
-                                print("\n\033[37;1m{0}___________________________________◢  \033[32;1mMatch #{1}\033[0m ◣____________________________________\033[0m\n".format('_' * (len(str(cpt)) - 1), cpt))
+                                print("\n\033[37;1m___________________________________◢  \033[32;1mMatch #{0}\033[0m ◣____________________________________\033[0m\n".format(cpt))
                                 print("\033[37;1mTHRESHOLD : \033[36m{0}\033[37m\nZWSP LIST : \033[36m{1}\033[0m".format(threshold, zwsp_groups[i]))
                                 print("\033[37;1mPREVIEW : \033[36m{0}\033[0m".format(result[0:preview_size].encode('utf-8', 'surrogateescape').decode()))
                                 print("\033[37;1m{0}____________________________________________________________________________________\033[0m\n".format('_' * (len(str(cpt)) - 1)))
                                 cpt += 1   
-                            bar()     
+                            bar() 
+                    if(cpt <= 1):
+                        print("\n" + display.error + "\033[37;1mNo match found !\033[0m\n") 
             else:
                 if output:
                     file = open(output, "a")
@@ -273,13 +279,13 @@ class ZWSPTool:
                 else:
                     for i in range(len(zwsp_groups)):
                         for threshold in range(threshold_range[0], threshold_range[1]):
-                            print("\n\033[37;1m{0}___________________________________◢  \033[32;1mAttempt #{1}\033[0m ◣____________________________________\033[0m\n".format('_' * (len(str(cpt)) - 1), cpt))
+                            print("\n\033[37;1m___________________________________◢  \033[32;1mAttempt #{0}\033[0m ◣____________________________________\033[0m\n".format(cpt))
                             print("\033[37;1mTHRESHOLD : \033[36m{0}\033[37m\nZWSP LIST : \033[36m{1}\033[0m".format(threshold, zwsp_groups[i]))
                             try:
                                 print("\033[37;1mPREVIEW : \033[36m{0}\033[0m".format(self.extract(public_text, zwsp_groups[i], threshold)[0:preview_size].encode('utf-8', 'surrogateescape').decode()))
                             except UnicodeEncodeError:
                                 print("ERROR !")
-                            print("\033[37;1m_______________________________________________________________________________________\033[0m\n")
+                            print("\033[37;1m{0}______________________________________________________________________________________\033[0m\n".format('_' * (len(str(cpt)) - 1)))
                             cpt += 1
                             bar()
         print()
