@@ -44,7 +44,7 @@ DEFAULT_SPACE_MODE_VALUE = True
 DEFAULT_UNCONSTRAIN_VALUE = False #bug
 DEFAULT_EQUALIZATION_VALUE = True
 DEFAULT_THRESHOLD_VALUE = 35
-DEFAULT_THRESHOLD_RANGE_VALUE = (10, 38)
+DEFAULT_THRESHOLD_RANGE_VALUE = "10, 38"
 DEFAULT_ENCRYPTION_VALUE = None
 DEFAULT_WILY_MODE_VALUE = True
 
@@ -392,6 +392,7 @@ extract_parser.add_argument("-e", "--encryption", dest="extractEncryption", meta
 extract_public_group = extract_parser.add_mutually_exclusive_group(required=True)
 extract_public_group.add_argument("-p", "--public", dest="extractPublic", metavar="<public_text>", help="Cover text containing zero width space characters to extract.", type=str)
 extract_public_group.add_argument("-P", "--pfile", dest="extractPublicFile", metavar="<path_to_file>", help="Use text cover from a file, containing zero width space characters for extraction.", type=str)
+extract_parser.add_argument("-t", "--threshold", dest="extractThreshold", metavar="<number>", help="Size of an encoding string, the larger the number, the more it is possible to encode different characters. Put the threshold value used during the embed step. ({0} by default)".format(DEFAULT_THRESHOLD_VALUE), default=DEFAULT_THRESHOLD_VALUE, type=int)
 
 bruteforce_parser.add_argument("-b", "--base", dest="bruteforceBase", metavar="<base>", help="Manually choose a fixed base (e.g : 2 for binary) to force the text. Please note, the base chosen cannot exceed the number of zero width spaces available in the lists.", type=int)
 bruteforce_parser.add_argument("-c", "--characters", dest="bruteforceCharacters", metavar="\"<char_1>, <char_2>, ...\"", help="Zero width characters to use to decode the private text (e.g : \\u200b).", type=str)
@@ -401,7 +402,7 @@ bruteforce_public_group = bruteforce_parser.add_mutually_exclusive_group(require
 bruteforce_public_group.add_argument("-p", "--public", dest="bruteforcePublic", metavar="<public_text>", help="Cover text containing zero width space characters to extract.", type=str)
 bruteforce_public_group.add_argument("-P", "--pfile", dest="bruteforcePublicFile", metavar="<path_to_file>", help="Use text cover from a file, containing zero width space characters for extraction.", type=str)
 bruteforce_parser.add_argument("-s", "--search", dest="bruteforceSearch", metavar="<search_term>", help="Specific terms to search for validate a bruteforce attempt.", type=str)
-bruteforce_parser.add_argument("-t", "--threshold", dest="bruteforceThreshold", metavar="[<start_range>, <end_range>]", help="Size of an encoding string, the larger the number, the more it is possible to encode different characters. Select the threshold range to test.", default=DEFAULT_THRESHOLD_RANGE_VALUE, type=int)
+bruteforce_parser.add_argument("-t", "--threshold", dest="bruteforceThreshold", metavar="\"<start_range>, <end_range>\"", help="Size of an encoding string, the larger the number, the more it is possible to encode different characters. Select the threshold range to test.", default=DEFAULT_THRESHOLD_RANGE_VALUE, type=str)
 bruteforce_parser.add_argument("-w", "--wily", dest="bruteforceWily", metavar="[y/yes/true, n/no/false]", help="Intelligent algorithm that only selects attempts that can be interesting to study. Please note that this is largely based on the composition of the latin alphabet.", nargs='?', const=True, default=DEFAULT_WILY_MODE_VALUE, type=str2bool)
 
 parser.add_argument("-o", "--output", dest="output", metavar="<output_file>", help="File to store the results.", type=str)
@@ -547,7 +548,7 @@ def main():
                 print(display.delimiter + "\n")
         elif args.command == "extract":
             public_text, private_text, password = "", "", ""
-            threshold = DEFAULT_THRESHOLD_VALUE
+            threshold = args.extractThreshold
             encryption = DEFAULT_ENCRYPTION_VALUE
             base = None
             zwsp_list = ZWSP_LIST
@@ -598,11 +599,25 @@ def main():
             clever_mode = args.bruteforceWily
             searched_text = args.bruteforceSearch
             preview_size = args.bruteforceDemo
-            threshold_range = args.bruteforceThreshold
+            threshold_range = args.bruteforceThreshold.replace(" ", "").split(',')
             encryption = args.bruteforceEncryption
             base = args.bruteforceBase
             regex = None
             zwsp_list = ZWSP_LIST
+
+            try:
+                for i in range(len(threshold_range)):
+                    threshold_range[i] = int(threshold_range[i], 10)
+            except ValueError:
+                print(display.error + "\033[37;1mThe threshold range is composed of exactly two integers !\033[0m\n")
+                exit()
+
+            if(len(threshold_range) != 2):
+                print(display.error + "\033[37;1mThe threshold range is composed of exactly two integers !\033[0m\n")
+                exit()
+            elif(threshold_range[0] > threshold_range[1]):
+                print(display.error + "\033[37;1mThreshold values must be placed in ascending order.\033[0m\n")
+                exit()
     
             if args.bruteforceCharacters:
                 if(args.bruteforceCharacters == "list"):
