@@ -224,7 +224,7 @@ class ZWSPTool:
         return private_text
 
 
-    def bruteforce(self, public_text, zwsp_list, threshold_range, base, preview_size, searched_text, encryption, output):
+    def bruteforce(self, public_text, zwsp_list, threshold_range, base, preview_size, searched_text, encryption, output, force):
         nb_operations, cpt, zwsp_groups = 0, 1, []
 
         for i in range(2, len(zwsp_list) + 1):
@@ -240,7 +240,11 @@ class ZWSPTool:
             if searched_text:
                 print("\033[37;1mRESEARCH : \033[36m{0}\033[0m".format(searched_text))
                 if output:
-                    file = open(output, "a")
+                    if force:
+                        file = open(args.output, "w")
+                    else:
+                        file = open(args.output, "a")
+ 
                     for i in range(len(zwsp_groups)):
                         for threshold in range(threshold_range[0], threshold_range[1]):
                             result = self.extract(public_text, zwsp_groups[i], threshold)
@@ -268,7 +272,10 @@ class ZWSPTool:
                         print("\n" + display.error + "\033[37;1mNo match found !\033[0m\n") 
             else:
                 if output:
-                    file = open(output, "a")
+                    if force:
+                        file = open(args.output, "w")
+                    else:
+                        file = open(args.output, "a")
                     for i in range(len(zwsp_groups)):
                         for threshold in range(threshold_range[0], threshold_range[1]):
                             file.write("\n{0}. {1}".format(cpt, self.extract(public_text, zwsp_groups[i], threshold)[0:preview_size].encode('utf-8', 'replace').decode()))
@@ -411,6 +418,7 @@ bruteforce_parser.add_argument("-s", "--search", dest="bruteforceSearch", metava
 bruteforce_parser.add_argument("-t", "--threshold", dest="bruteforceThreshold", metavar="\"<start_range>, <end_range>\"", help="Size of an encoding string, the larger the number, the more it is possible to encode different characters. Select the threshold range to test.", default=DEFAULT_THRESHOLD_RANGE_VALUE, type=str)
 bruteforce_parser.add_argument("-w", "--wily", dest="bruteforceWily", metavar="[y/yes/true, n/no/false]", help="Intelligent algorithm that only selects attempts that can be interesting to study. Please note that this is largely based on the composition of the latin alphabet.", nargs='?', const=True, default=DEFAULT_WILY_MODE_VALUE, type=str2bool)
 
+parser.add_argument("-f", "--force", dest="force", help="Overwrite the output file if already existing.", action="store_true")
 parser.add_argument("-o", "--output", dest="output", metavar="<output_file>", help="File to store the results.", type=str)
 verbose_group = parser.add_mutually_exclusive_group()
 verbose_group.add_argument("-q", "--quiet", dest="quiet", help="Disable output verbosity.", action="store_true")
@@ -480,7 +488,10 @@ def main():
             print()
 
             if args.output:
-                file = open(args.output, "a")
+                if args.force:
+                    file = open(args.output, "w")
+                else:
+                    file = open(args.output, "a")
                 file.write(analyzed_text)
                 file.close()
                 print(display.success + "\033[37;1mThe text has been correctly analyzed\033[0m")
@@ -542,7 +553,10 @@ def main():
             print()
             
             if args.output:
-                file = open(args.output, "a")
+                if args.force:
+                    file = open(args.output, "w")
+                else:
+                    file = open(args.output, "a")
                 file.write(str(final_text))
                 file.close()
                 print(display.success + "\033[37;1mThe text has been correctly hidden\033[0m")
@@ -590,7 +604,10 @@ def main():
                     private_text = zwsp_tool.decrypt(private_text, args.extractEncryption, password)
 
                 if args.output:
-                    file = open(args.output, "a")
+                    if args.force:
+                        file = open(args.output, "w")
+                    else:
+                        file = open(args.output, "a")
                     file.write(private_text)
                     file.close()
                     print(display.success + "\033[37;1mText has been correctly extracted\033[0m")
@@ -653,7 +670,7 @@ def main():
                 regex = ".*" + searched_text + ".*"
 
             if(zwsp_tool.verification(public_text, zwsp_list)):
-                zwsp_tool.bruteforce(public_text, zwsp_list, threshold_range, base, preview_size, regex, encryption, args.output)
+                zwsp_tool.bruteforce(public_text, zwsp_list, threshold_range, base, preview_size, regex, encryption, args.output, args.force)
             else:
                 print(display.info + "\033[37;1mThe cover text doesn't contain any zero width characters present in the list.\033[0m\n")
         elif args.verbose:
