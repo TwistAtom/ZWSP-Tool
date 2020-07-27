@@ -95,7 +95,7 @@ class ZWSPTool:
 
     def start(self):
         os.system('clear')
-        os.system('echo "$(cat banner/banner.txt)"')
+        os.system('echo "$(cat ~/ZWSP-Tool/banner/banner.txt)"')
 
 
     def to_base(self, num, base, numerals='0123456789abcdefghijklmnopqrstuvwxyz'):
@@ -373,18 +373,18 @@ embed_parser = subparsers.add_parser('embed', help='Hide private text, with zero
 extract_parser = subparsers.add_parser('extract', help='Extract private text from cover text containing zero width spaces.', description='Extract private text from cover text containing zero width spaces.')
 bruteforce_parser = subparsers.add_parser('bruteforce', help='Test all possible characters and combinations to extract data.', description='Test all possible characters and combinations to extract data.')
 
-clean_parser.add_argument("-i", "--ignore", dest="cleanIgnore", metavar="<ignored_character>", help="Ignore characters.", type=str)
+clean_parser.add_argument("-i", "--ignore", dest="cleanIgnore", metavar="\"<ignored_character>, ...\"", help="Ignore characters.", type=str)
 clean_public_group = clean_parser.add_mutually_exclusive_group(required=True)
 clean_public_group.add_argument("-p", "--public", dest="cleanPublic", metavar="<public_text>", help="Text to clean.", type=str)
 clean_public_group.add_argument("-P", "--pfile", dest="cleanPublicFile", metavar="<path_to_file>", help="Text from a file to clean up.", type=str)
-clean_parser.add_argument("-s", "--specific", dest="cleanSpecific", metavar="<specific_character>", help="Clean specific characters.", type=str)
+clean_parser.add_argument("-s", "--specific", dest="cleanSpecific", metavar="\"<specific_character>, ...\"", help="Clean specific characters.", type=str)
 
-detect_parser.add_argument("-i", "--ignore", dest="detectIgnore", metavar="<ignored_character>", help="Ignore characters.", type=str)
+detect_parser.add_argument("-i", "--ignore", dest="detectIgnore", metavar="\"<ignored_character>, ...\"", help="Ignore characters.", type=str)
 detect_public_Group = detect_parser.add_mutually_exclusive_group(required=True)
 detect_public_Group.add_argument("-p", "--public", dest="detectPublic", metavar="<public_text>", help="Suspected text, that could to contain zero width spaces.", type=str)
 detect_public_Group.add_argument("-P", "--pfile", dest="detectPublicFile", metavar="<path_to_file>", help="Suspected text from a file, that could to contain zero width spaces.", type=str)
 detect_parser.add_argument("-r", "--replace", dest="detectReplace", help="Character replacing zero width spaces.", choices=['dotted', 'escaped', 'named'],)
-detect_parser.add_argument("-s", "--search", dest="detectSearch", metavar="<search_character>", help="Search characters.", type=str)
+detect_parser.add_argument("-s", "--search", dest="detectSearch", metavar="\"<search_character>, ...\"", help="Search characters.", type=str)
 
 #embed_parser.add_argument("-a", "--auto", dest="embedAuto", metavar="[y/yes/true, n/no/false]", help="-", nargs='?', const=True, default=True, type=str2bool)
 embed_parser.add_argument("-c", "--characters", dest="embedCharacters", metavar="\"<char_1>, <char_2>, ...\"", help="Zero width characters to use to encode the private text (e.g : \\u200b). Use the 'list' argument to see some possible characters.", type=str)
@@ -432,6 +432,14 @@ def main():
     try:
         if args.command == "clean": 
             initial_text, analyzed_text = "", ""
+            ignore, specific = [], []
+
+            if args.cleanIgnore:
+                ignore = list(set([item.encode('latin1').decode('unicode_escape') for item in args.cleanIgnore.replace(" ", "").split(',')]))
+
+            if args.cleanSpecific:
+                specific = list(set([item.encode('latin1').decode('unicode_escape') for item in args.cleanSpecific.replace(" ", "").split(',')]))
+
             if args.cleanPublic:
                 initial_text = args.cleanPublic.encode('ascii', 'ignore').decode('unicode_escape')
             elif args.cleanPublicFile:
@@ -439,15 +447,65 @@ def main():
                 initial_text = file.read()
                 file.close()
 
-            with alive_bar(len(initial_text), bar=DETERMINATED_BAR) as bar:
+            with alive_bar(len(initial_text), bar=DETERMINATED_BAR, enrich_print=False) as bar:
                 for i in range(len(initial_text)-1):
                     bar()
-                cleanedText = initial_text.encode('ascii', 'ignore').decode('unicode_escape')
+                
+                if(len(ignore) > 0 and len(specific) > 0):
+                    duplicate = []
+                    for element in list(ignore):
+                        print("ignore")
+                        print(ignore)
+                        print("specific")
+                        print(specific)
+                        if(element in specific):
+                            duplicate.append(element.encode('unicode_escape').decode('utf-8'))
+                            ignore.remove(element)
+                            specific.remove(element)
+
+                    if(len(duplicate) > 0):
+                        print("{0}\033[37;1mCaution, '\033[36;1m{1}\033[37m' is in \033[00;1m--specific\033[37m and \033[00;1m--ignore\033[37m option it has been excluded from the list for safety.\033[00m\n".format(
+                                display.info, ', '.join(duplicate)))
+
+
+                    print("\033[37;1mIGNORE : \033[36m{0}\033[0m".format(ignore))
+                    print("\033[37;1mSPECIFIC : \033[36m{0}\033[0m\n".format(specific))
+                    cleanedText = initial_text
+
+                    for element in ignore:
+                        splitted_text = cleanedText.split(element)
+                        for i in range(len(splitted_text)):
+                            splitted_text[i] = splitted_text[i].encode('ascii', 'ignore').decode('unicode_escape')
+                        cleanedText = element.join(splitted_text)
+
+                    for element in specific:
+                        cleanedText = cleanedText.replace(element, '')
+                elif(len(ignore) > 0):
+                    print("\033[37;1mIGNORE : \033[36m{0}\033[0m\n".format(ignore))
+                    cleanedText = initial_text
+
+                    for element in ignore:
+                        splitted_text = cleanedText.split(element)
+                        for i in range(len(splitted_text)):
+                            splitted_text[i] = splitted_text[i].encode('ascii', 'ignore').decode('unicode_escape')
+                        cleanedText = element.join(splitted_text)
+                elif(len(specific) > 0):
+                    print("\033[37;1mSPECIFIC : \033[36m{0}\033[0m\n".format(specific))
+                    cleanedText = initial_text
+
+                    for element in specific:
+                        cleanedText = cleanedText.replace(element, '')
+                else:
+                    cleanedText = initial_text.encode('ascii', 'ignore').decode('unicode_escape')
+                    
                 bar()
             print()
 
             if args.output:
-                file = open(args.output, "a")
+                if args.force:
+                    file = open(args.output, "w")
+                else:
+                    file = open(args.output, "a")
                 file.write(cleanedText)
                 file.close()
                 print(display.success + "\033[37;1mThe text has been cleaned up\033[0m")
@@ -468,7 +526,7 @@ def main():
                 file.close()
                 
             if args.detectReplace == "escaped" or args.detectReplace == "named":
-                with alive_bar(len(initial_text)) as bar:
+                with alive_bar(len(initial_text), bar=DETERMINATED_BAR) as bar:
                     for i in range(len(initial_text)-1):
                         bar()
                     if args.detectReplace == "escaped":
