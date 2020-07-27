@@ -1,11 +1,20 @@
 #!/bin/bash
 
+trap ctrl_c INT
+
 SUCCESS="\033[37;1m[\033[32;1m+\033[37;1m]\033[0m "
 INFO="\033[37;1m[\033[36;1m*\033[37;1m]\033[0m "
 ERROR="\033[37;1m[\033[31;1m-\033[37;1m]\033[0m "
 
 L_BRACKET="\033[37;1m[\033[0m"
 R_BRACKET="\033[37;1m]\033[0m"
+
+function ctrl_c () {
+   stty -echoctl
+   kill $LOADING_ID &> /dev/null
+   echo -e "\n\n"$ERROR"\033[37;1mInstallation interrupted !\033[0m\n"
+   exit
+}
 
 function loading () {
 i=0
