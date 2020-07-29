@@ -94,7 +94,7 @@ $ ./uninstall.sh
 
 |     Parameter    |   Type  |           Format          |                       Default                      |                                                                                       Note                                                                                      |
 |:----------------:|:-------:|:-------------------------:|:--------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
-| `-c`,<br/><nobr>`--characters`<nobr> |  string | `"<char_1>, <char_2>, ..."` | `('\u200b', '\u200c', '\u200d', '\u200e', '\u200f')` | Zero width characters to use to decode the private text. Use the 'list' argument to see some possible characters.<img width=200/>                                                               |
+| `-c`,<br/><nobr>`--characters`<nobr> |  `string` | `"<char_1>, <char_2>, ..."` | `('\u200b', '\u200c', '\u200d', '\u200e', '\u200f')` | Zero width characters to use to decode the private text. Use the 'list' argument to see some possible characters.<img width=200/>                                                               |
 | `-e`,<br/><nobr>`--encryption`<nobr> |  `string` |      {`AES`, `RSA`, `PGP`}      |                                                    | Encryption type.                                                                                                                                                                |
 |  `-t`,<br/><nobr>`--threshold`<nobr> | `integer` |          `<number>`         |                         `35`                         | Size of an encoding string, the larger the number, the more it is possible to encode different characters. However it is best to keep a small size in order to remain discreet. |
 
@@ -103,7 +103,7 @@ $ ./uninstall.sh
 |     Parameter    |   Type  |            Format            |                       Default                      |                                                                                   Note                                                                                  |
 |:----------------:|:-------:|:----------------------------:|:--------------------------------------------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
 |    `-b`,<br><nobr>`--base`<nobr>    | `integer` |            `<base>`            |                                                    | Manually choose a fixed base (e.g : 2 for binary) to force the text. Please note, the base chosen cannot exceed the number of zero width spaces available in the lists.<img width=200/> |
-| `-c`,<br><nobr>`--characters`<nobr> |  `string` |   `"<char_1>, <char_2>, ..."`  | `('\u200b', '\u200c', '\u200d', '\u200e', '\u200f')` | Zero width characters to use to decode the private<br>                        text.                                                                                     |
+| `-c`,<br><nobr>`--characters`<nobr> |  `string` |   `"<char_1>, <char_2>, ..."`  | `('\u200b', '\u200c', '\u200d', '\u200e', '\u200f')` | Zero width characters to use to decode the private text.                                                                                     |
 |    `-d`,<br><nobr>`--demo`<nobr>    | `integer` |        `<preview_size>`        |                         `50`                         | Size of the preview in number of characters. This allows you to quickly view and analyze bruteforce attempts.                                                           |
 | `-e`,<br><nobr>`--encryption`<nobr> |  `string` |        {`AES`, `RSA`, `PGP`}       |                                                    | Encryption type.                                                                                                                                                        |
 |   `-s`,<br><nobr>`--search`<nobr>   |  `string` |   `"<term_1>, <term_2>, ..."`  |                                                    | Specific terms to search for validate a bruteforce attempt.<br>**Note:** cannot be used with `-w`, `--wily`                                                                     |
@@ -114,7 +114,8 @@ $ ./uninstall.sh
 
 |   Parameter   |   Type  |     Format     | Default |                                                Note                                               |
 |:-------------:|:-------:|:--------------:|:-------:|:-------------------------------------------------------------------------------------------------:|
-|  `-o`,<br/><nobr>`--output`<nobr> |  `string` |  `<output_file>` |         | File to store the results.<img width=300/>                                                                        |
+|  `-f`,<br/><nobr>`--force`<nobr> |  `string` |                  |         | Overwrite the output file if already existing.<img width=300/>   |
+|  `-o`,<br/><nobr>`--output`<nobr> |  `string` |  `<output_file>` |         | File to store the results.                                                                        |
 |  `-p`,<br/><nobr>`--public`<nobr> |  `string` |  `<public_text>` |         | Visible text to use entered from the command line.<br/>`Required`<br/>**Note:** cannot be used with `-P`, `--pfile` |
 |  `-P`,<br/><nobr>`--pfile`<nobr>  |  `string` | `<path_to_file>` |         | Visible text to use from a text file.<br/>`Required`<br/>**Note:** cannot be used with `-p`, `--public`             |
 |  `-q`,<br/><nobr>`--quiet`<nobr>  | `boolean` |                |  `False`  | Disable output verbosity.                                                                         |
@@ -125,18 +126,26 @@ $ ./uninstall.sh
 ```sh
 $ zwsp-tool detect -P path_to_file/suspicious_text.txt
 ```
+<br/>
+
 2 - Remove zero width characters from a text file :
 ```sh
 $ zwsp-tool clean -P path_to_file/suspicious_text.txt
 ```
+<br/>
+
 3 - Hide private text in cover text with encryption and store the result in an external file : 
 ```sh
 $ zwsp-tool -o result.txt embed -p "Public text" -m "Private text" -e AES
 ```
+<br/>
+
 4 - Extract a private text contained in a cover text and display it on standard output :
 ```sh
 $ zwsp-tool extract -P path_to_file/text.txt -e AES 
 ```
+<br/>
+
 5 - Bruteforce a suspicious text containing zero-width characters :
 ```sh
 $ zwsp-tool bruteforce -P path_to_file/suspicious_text.txt
