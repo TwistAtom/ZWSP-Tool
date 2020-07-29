@@ -341,6 +341,7 @@ def str2bool(value):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
+
 def display_zwsp_list():
     print("\033[37;1mThis list is not exhaustive but contains the most discreet zero width characters :\033[0m\n")
     table = []
@@ -352,6 +353,7 @@ def display_zwsp_list():
     print(tabulate(table, ("\033[32;1mNAME\033[0m", "\033[32;1mCODE\033[0m"), tablefmt="pretty") + "\n")
     exit()
 
+
 def format_zwsp_list(zwsp_list):
     try:
         zwsp_list = [item.encode('latin1').decode('unicode_escape') for item in zwsp_list.replace(" ", "").split(',')]
@@ -360,6 +362,7 @@ def format_zwsp_list(zwsp_list):
     except UnicodeDecodeError:
         print(display.error + "\033[37;1mSome unicode characters present in the list are invalid !\033[0m\n")
         exit()
+
 
 display = Display()
 
@@ -426,6 +429,7 @@ verbose_group.add_argument("-v", "--verbose", dest="verbose", help="Increase out
 
 args = parser.parse_args()
 
+
 def main():
     zwsp_tool = ZWSPTool(REPLACEMENT_PATTERN)
 
@@ -454,50 +458,47 @@ def main():
                 if(len(ignore) > 0 and len(specific) > 0):
                     duplicate = []
                     for element in list(ignore):
-                        print("ignore")
-                        print(ignore)
-                        print("specific")
-                        print(specific)
                         if(element in specific):
                             duplicate.append(element.encode('unicode_escape').decode('utf-8'))
                             ignore.remove(element)
                             specific.remove(element)
 
                     if(len(duplicate) > 0):
-                        print("{0}\033[37;1mCaution, '\033[36;1m{1}\033[37m' is in \033[00;1m--specific\033[37m and \033[00;1m--ignore\033[37m option it has been excluded from the list for safety.\033[00m\n".format(
-                                display.info, ', '.join(duplicate)))
+                        connector = "is" if len(duplicate) == 1 else "are"
+                        print("{0}\033[37;1mCaution, '\033[36;1m{1}\033[37m' {2} in \033[00;1m--specific\033[37m and \033[00;1m--ignore\033[37m option it has been excluded from the list for safety.\033[00m\n".format(
+                                display.info, ', '.join(duplicate), connector))
 
 
                     print("\033[37;1mIGNORE : \033[36m{0}\033[0m".format(ignore))
                     print("\033[37;1mSPECIFIC : \033[36m{0}\033[0m\n".format(specific))
-                    cleanedText = initial_text
+                    cleaned_text = initial_text
 
                     for element in ignore:
-                        splitted_text = cleanedText.split(element)
+                        splitted_text = cleaned_text.split(element)
                         for i in range(len(splitted_text)):
                             splitted_text[i] = splitted_text[i].encode('ascii', 'ignore').decode('unicode_escape')
-                        cleanedText = element.join(splitted_text)
+                        cleaned_text = element.join(splitted_text)
 
                     for element in specific:
-                        cleanedText = cleanedText.replace(element, '')
+                        cleaned_text = cleaned_text.replace(element, '')
                 elif(len(ignore) > 0):
                     print("\033[37;1mIGNORE : \033[36m{0}\033[0m\n".format(ignore))
-                    cleanedText = initial_text
+                    cleaned_text = initial_text
 
                     for element in ignore:
-                        splitted_text = cleanedText.split(element)
+                        splitted_text = cleaned_text.split(element)
                         for i in range(len(splitted_text)):
                             splitted_text[i] = splitted_text[i].encode('ascii', 'ignore').decode('unicode_escape')
-                        cleanedText = element.join(splitted_text)
+                        cleaned_text = element.join(splitted_text)
                 elif(len(specific) > 0):
                     print("\033[37;1mSPECIFIC : \033[36m{0}\033[0m\n".format(specific))
-                    cleanedText = initial_text
+                    cleaned_text = initial_text
 
                     for element in specific:
-                        cleanedText = cleanedText.replace(element, '')
+                        cleaned_text = cleaned_text.replace(element, '')
                 else:
-                    cleanedText = initial_text.encode('ascii', 'ignore').decode('unicode_escape')
-                    
+                    cleaned_text = initial_text.encode('ascii', 'ignore').decode('unicode_escape')
+
                 bar()
             print()
 
@@ -506,18 +507,31 @@ def main():
                     file = open(args.output, "w")
                 else:
                     file = open(args.output, "a")
-                file.write(cleanedText)
+                file.write(cleaned_text)
                 file.close()
                 print(display.success + "\033[37;1mThe text has been cleaned up\033[0m")
                 print(display.info + "\033[37;1mText saved in '\033[36;1m" + args.output + "\033[0m'")
             else:
                 print(display.success + "\033[37;1mThe text has been cleaned up\033[0m")
                 print(display.delimiter)
-                print(cleanedText)
+                print(cleaned_text)
                 print(display.delimiter + "\n")
 
         elif args.command == "detect":
             initial_text, analyzed_text = "", ""
+            ignore, search = [], []
+
+            replacement_char = '•'
+            if not args.output:
+                replacement_char = '\033[31;1m•\033[0m'
+
+
+            if args.detectIgnore:
+                ignore = list(set([item.encode('latin1').decode('unicode_escape') for item in args.detectIgnore.replace(" ", "").split(',')]))
+
+            if args.detectSearch:
+                search = list(set([item.encode('latin1').decode('unicode_escape') for item in args.detectSearch.replace(" ", "").split(',')]))
+
             if args.detectPublic:
                 initial_text = args.detectPublic
             elif args.detectPublicFile:
@@ -525,24 +539,78 @@ def main():
                 initial_text = file.read()
                 file.close()
                 
-            if args.detectReplace == "escaped" or args.detectReplace == "named":
-                with alive_bar(len(initial_text), bar=DETERMINATED_BAR) as bar:
-                    for i in range(len(initial_text)-1):
-                        bar()
-                    if args.detectReplace == "escaped":
-                        analyzed_text = initial_text.encode("ascii", "backslashreplace")
-                    else:
-                        analyzed_text = initial_text.encode("ascii", "namereplace")
+            with alive_bar(len(initial_text), bar=DETERMINATED_BAR, enrich_print=False) as bar:
+                for i in range(len(initial_text)-1):
                     bar()
-            else:
-                with alive_bar(len(initial_text), bar=DETERMINATED_BAR) as bar:
-                    for i in range(len(initial_text)-1):
-                        bar()
-                    if args.output:
-                        analyzed_text = re.sub('&#.{4,5};', '•', initial_text.encode("ascii", "xmlcharrefreplace").decode('utf-8'))
+
+                if(len(ignore) > 0 and len(search) > 0):
+                    duplicate = []
+                    for element in list(ignore):
+                        if(element in search):
+                            duplicate.append(element.encode('unicode_escape').decode('utf-8'))
+                            ignore.remove(element)
+                            search.remove(element)
+
+                    if(len(duplicate) > 0):
+                        connector = "is" if len(duplicate) == 1 else "are"
+                        print("{0}\033[37;1mCaution, '\033[36;1m{1}\033[37m' {2} in \033[00;1m--ignore\033[37m and \033[00;1m--search\033[37m option it has been excluded from the list for safety.\033[00m\n".format(
+                                display.info, ', '.join(duplicate), connector))
+
+                    print("\033[37;1mIGNORE : \033[36m{0}\033[0m".format(ignore))
+                    print("\033[37;1mSEARCH : \033[36m{0}\033[0m\n".format(search))
+                    analyzed_text = initial_text
+
+                    for element in ignore:
+                        splitted_text = analyzed_text.split(element)
+                        for i in range(len(splitted_text)):
+                            if(args.detectReplace == "escaped"):
+                                splitted_text[i] = splitted_text[i].encode("ascii", "backslashreplace").decode('utf-8')
+                            elif(args.detectReplace == "named"):
+                                splitted_text[i] = splitted_text[i].encode("ascii", "namereplace").decode('utf-8')
+                            else:
+                                splitted_text[i] = re.sub('&#.{4,5};', replacement_char, splitted_text[i].encode("ascii", "xmlcharrefreplace").decode('utf-8'))
+                        analyzed_text = element.join(splitted_text)
+
+                    for element in search:
+                        if(args.detectReplace == "escaped"):
+                            analyzed_text = analyzed_text.replace(element, element.encode("ascii", "backslashreplace").decode('utf-8'))
+                        elif(args.detectReplace == "named"):
+                            analyzed_text = analyzed_text.replace(element, element.encode("ascii", "namereplace").decode('utf-8'))
+                        else:
+                            analyzed_text = analyzed_text.replace(element, replacement_char)
+                elif(len(ignore) > 0):
+                    print("\033[37;1mIGNORE : \033[36m{0}\033[0m\n".format(ignore))
+                    analyzed_text = initial_text
+
+                    for element in ignore:
+                        splitted_text = analyzed_text.split(element)
+                        for i in range(len(splitted_text)):
+                            if(args.detectReplace == "escaped"):
+                                splitted_text[i] = splitted_text[i].encode("ascii", "backslashreplace").decode('utf-8')
+                            elif(args.detectReplace == "named"):
+                                splitted_text[i] = splitted_text[i].encode("ascii", "namereplace").decode('utf-8')
+                            else:
+                                splitted_text[i] = re.sub('&#.{4,5};', replacement_char, splitted_text[i].encode("ascii", "xmlcharrefreplace").decode('utf-8'))
+                        analyzed_text = element.join(splitted_text)
+                elif(len(search) > 0):
+                    print("\033[37;1mSEARCH : \033[36m{0}\033[0m\n".format(search))
+                    analyzed_text = initial_text
+
+                    for element in search:
+                        if(args.detectReplace == "escaped"):
+                            analyzed_text = analyzed_text.replace(element, element.encode("ascii", "backslashreplace").decode('utf-8'))
+                        elif(args.detectReplace == "named"):
+                            analyzed_text = analyzed_text.replace(element, element.encode("ascii", "namereplace").decode('utf-8'))
+                        else:
+                            analyzed_text = analyzed_text.replace(element, replacement_char)
+                else:
+                    if(args.detectReplace == "escaped"):
+                        analyzed_text = initial_text.encode("ascii", "backslashreplace").decode('utf-8')
+                    elif(args.detectReplace == "named"):
+                        analyzed_text = initial_text.encode("ascii", "namereplace").decode('utf-8')
                     else:
-                        analyzed_text = re.sub('&#.{4,5};', '\033[31;1m•\033[0m', initial_text.encode("ascii", "xmlcharrefreplace").decode('utf-8'))
-                    bar()
+                        analyzed_text = re.sub('&#.{4,5};', replacement_char, initial_text.encode("ascii", "xmlcharrefreplace").decode('utf-8'))
+                bar()
             print()
 
             if args.output:
